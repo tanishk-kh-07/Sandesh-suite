@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import AutoDestructTracker from '../components/AutoDestructTracker';
 
 export default function VideoVault() {
   const router = useRouter();
@@ -15,6 +16,15 @@ export default function VideoVault() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [payloadProgress, setPayloadProgress] = useState(0);
+
+  const handleDestruct = () => {
+    if (videoUrl) URL.revokeObjectURL(videoUrl);
+    setVideoFile(null);
+    setVideoUrl(null);
+    setPasscode('');
+    setShowResult(false);
+    setPayloadProgress(0);
+  };
 
   // Cleanup object URLs to avoid memory leaks
   useEffect(() => {
@@ -75,7 +85,8 @@ export default function VideoVault() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-gray-100 flex flex-col font-sans selection:bg-orange-900 selection:text-orange-400">
+    <div className="min-h-screen bg-black text-gray-100 flex flex-col font-sans selection:bg-orange-900 selection:text-orange-400 relative">
+      <AutoDestructTracker onDestruct={handleDestruct} colorTheme="orange" />
       {/* Header */}
       <header className="border-b border-gray-800 bg-gray-950 px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-[0_4px_30px_rgba(0,0,0,0.5)]">
         <div className="flex items-center gap-4">

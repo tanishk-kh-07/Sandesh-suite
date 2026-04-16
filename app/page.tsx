@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import AutoDestructTracker from './components/AutoDestructTracker';
 
 export default function Home() {
   const router = useRouter();
@@ -18,6 +19,14 @@ export default function Home() {
 
   // UI Colors derived from mode
   const currentNeonColor = extractMode === 'image' ? 'green' : 'blue';
+
+  const handleDestruct = () => {
+     // Wipe all highly sensitive state
+     setExtractFile(null);
+     setExtractPasscode('');
+     setExtractFrameCount('');
+     setExtractionStatus('idle');
+  };
 
   const handleInitialize = (vaultName: string) => {
     if (vaultName === 'Pixel Vault') {
@@ -63,7 +72,8 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-gray-100 flex flex-col font-sans selection:bg-green-900 selection:text-green-400">
+    <div className="min-h-screen bg-black text-gray-100 flex flex-col font-sans selection:bg-green-900 selection:text-green-400 relative">
+      <AutoDestructTracker onDestruct={handleDestruct} colorTheme="red" />
       
       {/* Header */}
       <header className="border-b border-gray-800 bg-gray-950 px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-[0_4px_30px_rgba(0,0,0,0.5)]">

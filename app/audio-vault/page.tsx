@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import AutoDestructTracker from '../components/AutoDestructTracker';
 
 export default function AudioVault() {
   const router = useRouter();
@@ -22,6 +23,18 @@ export default function AudioVault() {
   const [showResult, setShowResult] = useState(false);
   const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
   const terminalEndRef = useRef<HTMLDivElement>(null);
+
+  const handleDestruct = () => {
+    if (coverUrl) URL.revokeObjectURL(coverUrl);
+    if (secretUrl) URL.revokeObjectURL(secretUrl);
+    setCoverFile(null);
+    setSecretFile(null);
+    setCoverUrl(null);
+    setSecretUrl(null);
+    setPasscode('');
+    setTerminalLogs([]);
+    setShowResult(false);
+  };
 
   // Cleanup object URLs to avoid memory leaks
   useEffect(() => {
@@ -117,7 +130,8 @@ export default function AudioVault() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-gray-100 flex flex-col font-sans selection:bg-blue-900 selection:text-blue-400">
+    <div className="min-h-screen bg-black text-gray-100 flex flex-col font-sans selection:bg-blue-900 selection:text-blue-400 relative">
+      <AutoDestructTracker onDestruct={handleDestruct} colorTheme="blue" />
       {/* Header */}
       <header className="border-b border-gray-800 bg-gray-950 px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-[0_4px_30px_rgba(0,0,0,0.5)]">
         <div className="flex items-center gap-4">

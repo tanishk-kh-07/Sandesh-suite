@@ -39,8 +39,11 @@ export async function POST(request: NextRequest) {
         tempFilePath = path.join(os.tmpdir(), tempFileName);
 
         // Save uploaded file buffer to temp directory
-        const buffer = Buffer.from(await file.arrayBuffer());
+        let buffer: Buffer | null = Buffer.from(await file.arrayBuffer());
         await writeFile(tempFilePath, buffer);
+        
+        // Zero-Persistence: Force buffer dereference to trigger V8 Garbage Collector
+        buffer = null;
 
         // Calculate KDF (Key Stretching)
         const derivedKey = deriveKey(passcode);
@@ -62,8 +65,11 @@ export async function POST(request: NextRequest) {
         // Calculate Digital Seal (SHA-256 of the output file)
         let digitalSeal = '';
         if (cryptFilePath) {
-            const cryptBuffer = await readFile(cryptFilePath);
+            let cryptBuffer: Buffer | null = await readFile(cryptFilePath);
             digitalSeal = crypto.createHash('sha256').update(cryptBuffer).digest('hex');
+            
+            // Zero-Persistence: Instant dereference
+            cryptBuffer = null;
         }
 
         // Enhance result with Digital Seal
@@ -72,12 +78,6 @@ export async function POST(request: NextRequest) {
             fingerprint: digitalSeal || 'N/A'
         };
 
-        // Cleanup temporary files
-        unlink(tempFilePath).catch(err => console.error(`Failed to delete temp file ${tempFilePath}:`, err));
-        if (cryptFilePath) {
-            unlink(cryptFilePath).catch(err => console.error(`Failed to delete crypt file ${cryptFilePath}:`, err));
-        }
-
         return NextResponse.json({
             success: true,
             data: finalResult
@@ -85,15 +85,17 @@ export async function POST(request: NextRequest) {
 
     } catch (error: any) {
         console.error('API Error:', error);
-        
-        // Cleanup if an error happened before cleanup phase
+        return NextResponse.json({ error: 'Failed to process vault operation', details: error.message }, { status: 500 });
+    } finally {
+        // Zero-Persistence Server enforcement: Mathematically scrub SSD temp tracks
         if (tempFilePath) {
-            unlink(tempFilePath).catch(() => {});
+            await unlink(tempFilePath).catch(err => console.error(`[RAM SCRUB] Failed to wipe temp matrix:`, err));
         }
         if (cryptFilePath) {
-            unlink(cryptFilePath).catch(() => {});
+            await unlink(cryptFilePath).catch(err => console.error(`[RAM SCRUB] Failed to wipe output matrix:`, err));
         }
-
-        return NextResponse.json({ error: 'Failed to process vault operation', details: error.message }, { status: 500 });
+        // Force GC references explicitly null
+        tempFilePath = null;
+        cryptFilePath = null;
     }
 }

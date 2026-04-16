@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import AutoDestructTracker from '../components/AutoDestructTracker';
 
 export default function PixelVault() {
   const router = useRouter();
@@ -18,6 +19,16 @@ export default function PixelVault() {
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showResult, setShowResult] = useState(false);
+
+  const handleDestruct = () => {
+    setFile(null);
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
+    setDimensions(null);
+    setCapacity(0);
+    setSecretText('');
+    setShowResult(false);
+  };
 
   // Determine current payload size
   const payloadSize = new Blob([secretText]).size;
@@ -97,7 +108,8 @@ export default function PixelVault() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-gray-100 flex flex-col font-sans selection:bg-green-900 selection:text-green-400">
+    <div className="min-h-screen bg-black text-gray-100 flex flex-col font-sans selection:bg-green-900 selection:text-green-400 relative">
+      <AutoDestructTracker onDestruct={handleDestruct} colorTheme="green" />
       {/* Header */}
       <header className="border-b border-gray-800 bg-gray-950 px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-[0_4px_30px_rgba(0,0,0,0.5)]">
         <div className="flex items-center gap-4">
