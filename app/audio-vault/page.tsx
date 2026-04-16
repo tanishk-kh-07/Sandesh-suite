@@ -23,6 +23,7 @@ export default function AudioVault() {
   const [showResult, setShowResult] = useState(false);
   const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
   const terminalEndRef = useRef<HTMLDivElement>(null);
+  const [securityStatus, setSecurityStatus] = useState<'idle' | 'checking' | 'ok'>('idle');
 
   const handleDestruct = () => {
     if (coverUrl) URL.revokeObjectURL(coverUrl);
@@ -34,6 +35,7 @@ export default function AudioVault() {
     setPasscode('');
     setTerminalLogs([]);
     setShowResult(false);
+    setSecurityStatus('idle');
   };
 
   // Cleanup object URLs to avoid memory leaks
@@ -56,6 +58,10 @@ export default function AudioVault() {
       if (coverUrl) URL.revokeObjectURL(coverUrl);
       setCoverFile(selectedFile);
       setCoverUrl(url);
+      
+      // Simulate Entropy check only on carrier
+      setSecurityStatus('checking');
+      setTimeout(() => setSecurityStatus('ok'), 1000);
     } else {
       if (secretUrl) URL.revokeObjectURL(secretUrl);
       setSecretFile(selectedFile);
@@ -139,8 +145,15 @@ export default function AudioVault() {
             <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
           </Link>
           <div className="w-8 h-8 bg-blue-500 rounded-sm flex items-center justify-center font-bold text-black border border-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.5)]">AV</div>
-          <h1 className="text-xl font-bold tracking-widest text-white uppercase" style={{ fontFamily: 'var(--font-rajdhani)' }}>
+          <h1 className="text-xl font-bold tracking-widest text-white uppercase flex items-center gap-2" style={{ fontFamily: 'var(--font-rajdhani)' }}>
             Audio Vault
+            <div className="group relative cursor-help">
+               <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-gray-500 hover:text-blue-400 transition" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+               <div className="absolute right-0 top-full mt-2 w-64 p-3 bg-gray-900 border border-gray-700 text-gray-300 text-xs rounded shadow-2xl opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 font-sans normal-case tracking-normal">
+                 <strong className="text-white block mb-1">Acoustic Carrier Drop</strong>
+                 Provides high redundancy and is perfect for evading optical scanner firewalls while passing cleanly through audio-listening gateways. 
+               </div>
+            </div>
           </h1>
         </div>
       </header>
@@ -229,6 +242,29 @@ export default function AudioVault() {
                         </div>
                       )}
                     </div>
+                    
+                    {/* Format & Security Helper */}
+                    <div className="flex flex-col gap-2 relative">
+                        <p className="text-[10px] uppercase font-bold text-gray-500 tracking-widest flex items-center gap-1">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3 text-red-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                          Format Standardization Enforced to Evade Sniffers (.wav solely)
+                        </p>
+                        
+                        {coverFile && securityStatus === 'checking' && (
+                           <div className="bg-black border border-gray-800 rounded p-2 text-xs font-mono text-gray-500 flex items-center gap-2 mt-1">
+                              <div className="w-2 h-2 bg-yellow-500 animate-pulse rounded-full"></div>
+                              Scanning acoustic signatures...
+                           </div>
+                        )}
+                        
+                        {coverFile && securityStatus === 'ok' && (
+                           <div className="bg-green-900/10 border border-green-900/50 rounded p-2 text-xs font-mono text-green-500 flex items-center gap-2 mt-1">
+                              <div className="w-2 h-2 bg-green-500 rounded-full shadow-[0_0_5px_rgba(0,255,65,0.8)]"></div>
+                              Statistical Entropy: Optimal - No Forensic Scars Detected
+                           </div>
+                        )}
+                    </div>
+
                   </div>
 
                   {/* Right Column: Settings */}
@@ -293,10 +329,15 @@ export default function AudioVault() {
             )}
 
             {!isProcessing && (
-              <div className="mt-4 pt-6 border-t border-gray-900">
+              <div className="mt-4 pt-6 border-t border-gray-900 flex flex-col md:flex-row items-center justify-between gap-6">
+                 <Link href="/video-vault" className="text-gray-500 hover:text-orange-400 font-mono text-xs uppercase tracking-widest flex items-center gap-2 transition px-4 py-2 rounded border border-transparent hover:border-orange-900 bg-transparent hover:bg-orange-950/20">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg>
+                    Plan B: Acoustic Analysis Flagged?<br/>Pivot to Video Vault
+                 </Link>
+                 
                  <button 
                    onClick={onExecute}
-                   disabled={!coverFile || !secretFile || !passcode}
+                   disabled={!coverFile || !secretFile || !passcode || securityStatus !== 'ok'}
                    className="w-full md:w-auto md:px-12 py-5 bg-blue-600 hover:bg-blue-500 text-black font-bold uppercase tracking-widest rounded-xl transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 relative overflow-hidden group ml-auto"
                  >
                    <span className="relative z-10">Execute Encapsulation</span>

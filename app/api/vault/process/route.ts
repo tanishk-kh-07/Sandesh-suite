@@ -45,6 +45,18 @@ export async function POST(request: NextRequest) {
         // Zero-Persistence: Force buffer dereference to trigger V8 Garbage Collector
         buffer = null;
 
+        // -------------------------------------------------------------------------------------
+        // TODO: Automated FFmpeg Transcoding Scaffold
+        // -------------------------------------------------------------------------------------
+        // To expand utility capabilities while maintaining cryptographical lossless standard:
+        // Before deriving key, intercept `.jpg`/`.mp3` streams via MIME scan.
+        // spawn a `child_process.execFile('ffmpeg')` mapped:
+        // `ffmpeg -i ${tempFilePath} -vcodec bmp ${tempFilePath.bmp}` (Pixel)
+        // `ffmpeg -i ${tempFilePath} -acodec pcm_s16le -ar 44100 ${tempFilePath.wav}` (Audio)
+        // Ensure to fs.rm obsolete lossy carriers post-convert before passing the 
+        // derived uncompressed matrix downwards to engine logic.
+        // -------------------------------------------------------------------------------------
+
         // Calculate KDF (Key Stretching)
         const derivedKey = deriveKey(passcode);
 

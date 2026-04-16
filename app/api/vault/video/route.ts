@@ -26,7 +26,15 @@ export async function POST(req: Request) {
     const outFramesDirectory = path.join(tmpDirectory, 'encoded_frames');
     const finalVideoPath = path.join(tmpDirectory, 'final_stealth.mp4');
 
-    // 1. PHASE A: TEMPORAL FRAME EXTRACTION (FFMPEG)
+    // 1. PHASE A: AUTOMATED STANDARDIZATION & FFMPEG TRANSCODE
+    // -------------------------------------------------------------------------------------
+    // To enable support for compressed matrices (.mkv, .mov, general lossy constructs):
+    // spawn a `child_process.execFile('ffmpeg')` mapped to transcode target to native .mp4
+    // BEFORE demultiplexing occurs. `ffmpeg -i ${inputCarrier} -vcodec h264_videotoolbox -b:v 5M ${inputVideoPath}`
+    // Delete the original lossy container safely using Zero-Persistence algorithms.
+    // -------------------------------------------------------------------------------------
+
+    // 2. PHASE B: TEMPORAL FRAME EXTRACTION (FFMPEG)
     // -------------------------------------------------------------------------------------
     // Using hardware-accelerated 'h264_videotoolbox' to instantly deconstruct the video 
     // into hundreds of lossless bitmaps at 30 FPS.

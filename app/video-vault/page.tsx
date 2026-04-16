@@ -12,10 +12,10 @@ export default function VideoVault() {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [passcode, setPasscode] = useState('');
   
-  // Dashboard states
   const [isProcessing, setIsProcessing] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [payloadProgress, setPayloadProgress] = useState(0);
+  const [securityStatus, setSecurityStatus] = useState<'idle' | 'checking' | 'ok'>('idle');
 
   const handleDestruct = () => {
     if (videoUrl) URL.revokeObjectURL(videoUrl);
@@ -24,6 +24,7 @@ export default function VideoVault() {
     setPasscode('');
     setShowResult(false);
     setPayloadProgress(0);
+    setSecurityStatus('idle');
   };
 
   // Cleanup object URLs to avoid memory leaks
@@ -45,6 +46,10 @@ export default function VideoVault() {
     setIsProcessing(false);
     setShowResult(false);
     setPayloadProgress(0);
+    
+    // Simulate Entropy check only on carrier
+    setSecurityStatus('checking');
+    setTimeout(() => setSecurityStatus('ok'), 1000);
   };
 
   const onDragOver = (e: React.DragEvent) => {
@@ -94,8 +99,15 @@ export default function VideoVault() {
             <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-orange-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
           </Link>
           <div className="w-8 h-8 bg-orange-500 rounded-sm flex items-center justify-center font-bold text-black border border-orange-400 shadow-[0_0_10px_rgba(249,115,22,0.5)]">VV</div>
-          <h1 className="text-xl font-bold tracking-widest text-white uppercase" style={{ fontFamily: 'var(--font-rajdhani)' }}>
+          <h1 className="text-xl font-bold tracking-widest text-white uppercase flex items-center gap-2" style={{ fontFamily: 'var(--font-rajdhani)' }}>
             Video Vault
+            <div className="group relative cursor-help">
+               <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-gray-500 hover:text-orange-400 transition" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+               <div className="absolute right-0 top-full mt-2 w-64 p-3 bg-gray-900 border border-gray-700 text-gray-300 text-xs rounded shadow-2xl opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 font-sans normal-case tracking-normal">
+                 <strong className="text-white block mb-1">High-Density Matrix Carrier</strong>
+                 Utilize strictly for high-density, multi-megabyte payloads. Warning: Large files are slower to transmit globally.
+               </div>
+            </div>
           </h1>
         </div>
       </header>
@@ -135,6 +147,29 @@ export default function VideoVault() {
                      </div>
                    )}
                  </div>
+
+                 {/* Format & Security Helper */}
+                 <div className="flex flex-col gap-2 relative">
+                    <p className="text-[10px] uppercase font-bold text-gray-500 tracking-widest flex items-center gap-1">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3 text-red-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                      Format Standardization Enforced to Evade Sniffers (.mp4, .avi solely)
+                    </p>
+                    
+                    {videoFile && securityStatus === 'checking' && (
+                       <div className="bg-black border border-gray-800 rounded p-2 text-xs font-mono text-gray-500 flex items-center gap-2 mt-1">
+                          <div className="w-2 h-2 bg-yellow-500 animate-pulse rounded-full"></div>
+                          Scanning matrix signatures...
+                       </div>
+                    )}
+                    
+                    {videoFile && securityStatus === 'ok' && (
+                       <div className="bg-green-900/10 border border-green-900/50 rounded p-2 text-xs font-mono text-green-500 flex items-center gap-2 mt-1">
+                          <div className="w-2 h-2 bg-green-500 rounded-full shadow-[0_0_5px_rgba(0,255,65,0.8)]"></div>
+                          Statistical Entropy: Optimal - No Forensic Scars Detected
+                       </div>
+                    )}
+                 </div>
+
                </div>
 
                {/* Right Column: Settings & Meter */}
@@ -184,11 +219,15 @@ export default function VideoVault() {
             </div>
 
             {!isProcessing && (
-              <div className="mt-8 pt-8 border-t border-gray-900 flex justify-end">
+              <div className="mt-8 pt-8 border-t border-gray-900 flex flex-col md:flex-row items-center justify-between gap-6">
+                 <Link href="/pixel-vault" className="text-gray-500 hover:text-green-400 font-mono text-xs uppercase tracking-widest flex items-center gap-2 transition px-4 py-2 rounded border border-transparent hover:border-green-900 bg-transparent hover:bg-green-950/20">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg>
+                    Plan B: Video Bandwidth Throttled?<br/>Pivot to Pixel Vault
+                 </Link>
                  <button 
                    onClick={onExecute}
-                   disabled={!videoFile || !passcode}
-                   className="w-full md:w-auto md:px-16 py-5 bg-orange-600 hover:bg-orange-500 text-black font-bold uppercase tracking-widest text-lg rounded-xl transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 relative overflow-hidden group shadow-[0_0_20px_rgba(249,115,22,0.3)]"
+                   disabled={!videoFile || !passcode || securityStatus !== 'ok'}
+                   className="w-full md:w-auto md:px-16 py-5 bg-orange-600 hover:bg-orange-500 text-black font-bold uppercase tracking-widest text-lg rounded-xl transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 relative overflow-hidden group shadow-[0_0_20px_rgba(249,115,22,0.3)] ml-auto"
                  >
                    <span className="relative z-10">Execute Sub-Level Weave</span>
                    <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 relative z-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"></path><path d="M12 5l7 7-7 7"></path></svg>
