@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function Home() {
+  const router = useRouter();
   const [activeVault, setActiveVault] = useState<string | null>(null);
   const [passcode, setPasscode] = useState('');
   const [file, setFile] = useState<File | null>(null);
@@ -11,6 +13,10 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
 
   const handleInitialize = (vaultName: string) => {
+    if (vaultName === 'Pixel Vault') {
+      router.push('/pixel-vault');
+      return;
+    }
     setActiveVault(vaultName);
     setPasscode('');
     setFile(null);
