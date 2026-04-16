@@ -28,6 +28,10 @@ export default function Home() {
       router.push('/audio-vault');
       return;
     }
+    if (vaultName === 'Video Vault') {
+      router.push('/video-vault');
+      return;
+    }
   };
 
   const onExtractDrop = (e: React.DragEvent) => {
@@ -112,23 +116,23 @@ export default function Home() {
 
         {dashboardMode === 'encapsulate' ? (
           <>
-            {/* Dashboard Cards Split View */}
-            <section className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* Dashboard Cards Grid View */}
+            <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
               {/* Pixel Vault */}
               <div className="group relative bg-gray-950 border border-gray-800 hover:border-green-500/50 rounded-xl overflow-hidden transition duration-500 hover:shadow-[0_0_30px_rgba(0,255,65,0.1)]">
                 <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-transparent opacity-0 group-hover:opacity-100 transition duration-500"></div>
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-green-500 to-transparent opacity-0 group-hover:opacity-100 transition duration-500"></div>
-                <div className="p-8 md:p-10 flex flex-col gap-6 h-full relative z-10">
+                <div className="p-8 md:p-6 lg:p-8 flex flex-col gap-6 h-full relative z-10">
                   <div className="flex items-center gap-4 mb-2">
-                    <div className="p-4 bg-gray-900 rounded-lg border border-gray-800 group-hover:border-green-500/30 transition duration-300">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 text-green-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                    <div className="p-3 bg-gray-900 rounded-lg border border-gray-800 group-hover:border-green-500/30 transition duration-300">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-7 h-7 text-green-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
                     </div>
-                    <h3 className="text-3xl font-bold text-white uppercase tracking-wider" style={{ fontFamily: 'var(--font-rajdhani)' }}>Pixel Vault</h3>
+                    <h3 className="text-2xl lg:text-3xl font-bold text-white uppercase tracking-wider" style={{ fontFamily: 'var(--font-rajdhani)' }}>Pixel Vault</h3>
                   </div>
-                  <p className="text-gray-400 text-lg leading-relaxed flex-grow">
+                  <p className="text-gray-400 text-sm lg:text-base leading-relaxed flex-grow">
                     Embed highly classified data within standard image carriers using advanced LSB matching. Undetectable visually and statistically resilient.
                   </p>
-                  <button onClick={() => handleInitialize('Pixel Vault')} className="mt-4 px-6 py-4 w-full bg-black border border-gray-800 hover:bg-green-500 hover:text-black hover:border-green-500 font-bold uppercase tracking-widest text-sm rounded-lg transition duration-300">
+                  <button onClick={() => handleInitialize('Pixel Vault')} className="mt-2 px-4 py-3 lg:px-6 lg:py-4 w-full bg-black border border-gray-800 hover:bg-green-500 hover:text-black hover:border-green-500 font-bold uppercase tracking-widest text-xs lg:text-sm rounded-lg transition duration-300">
                     Initialize Vector
                   </button>
                 </div>
@@ -138,17 +142,37 @@ export default function Home() {
               <div className="group relative bg-gray-950 border border-gray-800 hover:border-blue-500/50 rounded-xl overflow-hidden transition duration-500 hover:shadow-[0_0_30px_rgba(59,130,246,0.1)]">
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent opacity-0 group-hover:opacity-100 transition duration-500"></div>
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent opacity-0 group-hover:opacity-100 transition duration-500"></div>
-                <div className="p-8 md:p-10 flex flex-col gap-6 h-full relative z-10">
+                <div className="p-8 md:p-6 lg:p-8 flex flex-col gap-6 h-full relative z-10">
                   <div className="flex items-center gap-4 mb-2">
-                    <div className="p-4 bg-gray-900 rounded-lg border border-gray-800 group-hover:border-blue-500/30 transition duration-300">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"></path><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path></svg>
+                    <div className="p-3 bg-gray-900 rounded-lg border border-gray-800 group-hover:border-blue-500/30 transition duration-300">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-7 h-7 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"></path><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path></svg>
                     </div>
-                    <h3 className="text-3xl font-bold text-white uppercase tracking-wider" style={{ fontFamily: 'var(--font-rajdhani)' }}>Audio Vault</h3>
+                    <h3 className="text-2xl lg:text-3xl font-bold text-white uppercase tracking-wider" style={{ fontFamily: 'var(--font-rajdhani)' }}>Audio Vault</h3>
                   </div>
-                  <p className="text-gray-400 text-lg leading-relaxed flex-grow">
+                  <p className="text-gray-400 text-sm lg:text-base leading-relaxed flex-grow">
                     Conceal payloads within uncompressed audio streams using Temporal Scattering. Bypasses standard acoustic analysis and waveform anomaly detection.
                   </p>
-                  <button onClick={() => handleInitialize('Audio Vault')} className="mt-4 px-6 py-4 w-full bg-black border border-gray-800 hover:bg-blue-500 hover:text-black hover:border-blue-500 font-bold uppercase tracking-widest text-sm rounded-lg transition duration-300">
+                  <button onClick={() => handleInitialize('Audio Vault')} className="mt-2 px-4 py-3 lg:px-6 lg:py-4 w-full bg-black border border-gray-800 hover:bg-blue-500 hover:text-black hover:border-blue-500 font-bold uppercase tracking-widest text-xs lg:text-sm rounded-lg transition duration-300">
+                    Initialize Vector
+                  </button>
+                </div>
+              </div>
+
+              {/* Video Vault */}
+              <div className="group relative bg-gray-950 border border-gray-800 hover:border-orange-500/50 rounded-xl overflow-hidden transition duration-500 hover:shadow-[0_0_30px_rgba(249,115,22,0.1)]">
+                <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-transparent opacity-0 group-hover:opacity-100 transition duration-500"></div>
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-orange-500 to-transparent opacity-0 group-hover:opacity-100 transition duration-500"></div>
+                <div className="p-8 md:p-6 lg:p-8 flex flex-col gap-6 h-full relative z-10">
+                  <div className="flex items-center gap-4 mb-2">
+                    <div className="p-3 bg-gray-900 rounded-lg border border-gray-800 group-hover:border-orange-500/30 transition duration-300">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-7 h-7 text-orange-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+                    </div>
+                    <h3 className="text-2xl lg:text-3xl font-bold text-white uppercase tracking-wider" style={{ fontFamily: 'var(--font-rajdhani)' }}>Video Vault</h3>
+                  </div>
+                  <p className="text-gray-400 text-sm lg:text-base leading-relaxed flex-grow">
+                    Deploy massive multi-layer payloads via rapid 30FPS spatial manipulation. Designed for heavy data exfiltration utilizing lossless video matrices.
+                  </p>
+                  <button onClick={() => handleInitialize('Video Vault')} className="mt-2 px-4 py-3 lg:px-6 lg:py-4 w-full bg-black border border-gray-800 hover:bg-orange-500 hover:text-black hover:border-orange-500 font-bold uppercase tracking-widest text-xs lg:text-sm rounded-lg transition duration-300">
                     Initialize Vector
                   </button>
                 </div>
@@ -172,7 +196,7 @@ export default function Home() {
             </section>
           </>
         ) : (
-          /* Secure Retrieval UI (Extract Mode) */
+          /* Secure Retrieval UI (Extract Mode) - Identical rendering logic to standard view handling */
           <section className="max-w-4xl mx-auto w-full flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-8 duration-500 pb-12">
              
              {/* Extraction Header Toggle */}
