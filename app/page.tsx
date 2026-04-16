@@ -1,6 +1,57 @@
-import React from 'react';
+"use client";
+
+import React, { useState } from 'react';
 
 export default function Home() {
+  const [activeVault, setActiveVault] = useState<string | null>(null);
+  const [passcode, setPasscode] = useState('');
+  const [file, setFile] = useState<File | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [result, setResult] = useState<{ fingerprint?: string, frameCount?: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleInitialize = (vaultName: string) => {
+    setActiveVault(vaultName);
+    setPasscode('');
+    setFile(null);
+    setResult(null);
+    setError(null);
+  };
+
+  const handleClose = () => {
+    setActiveVault(null);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!file || !passcode) return;
+
+    setIsProcessing(true);
+    setError(null);
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('passcode', passcode);
+
+    try {
+      const res = await fetch('/api/vault/process', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setResult(data.data);
+      } else {
+        setError(data.error || 'Failed to process vector.');
+      }
+    } catch (err) {
+      setError('An expected network error occurred.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-black text-gray-100 flex flex-col font-sans selection:bg-green-900 selection:text-green-400">
       
@@ -52,7 +103,7 @@ export default function Home() {
               <p className="text-gray-400 text-lg leading-relaxed flex-grow">
                 Embed highly classified data within standard image carriers using advanced LSB matching. Undetectable visually and statistically resilient.
               </p>
-              <button className="mt-4 px-6 py-4 w-full bg-black border border-gray-800 group-hover:bg-green-500 group-hover:text-black group-hover:border-green-500 font-bold uppercase tracking-widest text-sm rounded-lg transition duration-300">
+              <button onClick={() => handleInitialize('Pixel Vault')} className="mt-4 px-6 py-4 w-full bg-black border border-gray-800 hover:bg-green-500 hover:text-black hover:border-green-500 font-bold uppercase tracking-widest text-sm rounded-lg transition duration-300">
                 Initialize Vector
               </button>
             </div>
@@ -72,7 +123,7 @@ export default function Home() {
               <p className="text-gray-400 text-lg leading-relaxed flex-grow">
                 Conceal payloads within uncompressed audio streams using Temporal Scattering. Bypasses standard acoustic analysis and waveform anomaly detection.
               </p>
-              <button className="mt-4 px-6 py-4 w-full bg-black border border-gray-800 group-hover:bg-blue-500 group-hover:text-black group-hover:border-blue-500 font-bold uppercase tracking-widest text-sm rounded-lg transition duration-300">
+              <button onClick={() => handleInitialize('Audio Vault')} className="mt-4 px-6 py-4 w-full bg-black border border-gray-800 hover:bg-blue-500 hover:text-black hover:border-blue-500 font-bold uppercase tracking-widest text-sm rounded-lg transition duration-300">
                 Initialize Vector
               </button>
             </div>
@@ -98,6 +149,75 @@ export default function Home() {
         </section>
 
       </main>
+
+      {/* Modal Overlay */}
+      {activeVault && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-gray-950 border border-gray-800 rounded-xl max-w-lg w-full p-8 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 bg-green-500"></div>
+            
+            <button onClick={handleClose} className="absolute top-6 right-6 text-gray-500 hover:text-white transition">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+
+            <h3 className="text-2xl font-bold text-white uppercase tracking-wider mb-6" style={{ fontFamily: 'var(--font-rajdhani)' }}>
+              {activeVault} Operation
+            </h3>
+
+            {!result ? (
+              <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Carrier File</label>
+                  <input 
+                    type="file" 
+                    onChange={e => setFile(e.target.files?.[0] || null)}
+                    className="w-full bg-black border border-gray-800 text-gray-300 p-3 rounded-lg focus:outline-none focus:border-green-500 transition file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-gray-800 file:text-gray-300 hover:file:bg-gray-700" 
+                    required 
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Encryption Passcode</label>
+                  <input 
+                    type="password" 
+                    value={passcode}
+                    onChange={e => setPasscode(e.target.value)}
+                    className="w-full bg-black border border-gray-800 text-gray-300 p-3 rounded-lg focus:outline-none focus:border-green-500 transition" 
+                    placeholder="Enter deterministic seed..."
+                    required
+                  />
+                </div>
+                {error && <p className="text-red-500 text-sm bg-red-950/30 p-3 rounded-lg border border-red-900/50">{error}</p>}
+                
+                <button 
+                  type="submit" 
+                  disabled={isProcessing}
+                  className="mt-4 px-6 py-4 w-full bg-green-600 hover:bg-green-500 text-black font-bold uppercase tracking-widest text-sm rounded-lg transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isProcessing ? 'Processing...' : 'Execute Encryption'}
+                </button>
+              </form>
+            ) : (
+               <div className="flex flex-col gap-6 animate-in fade-in zoom-in duration-500">
+                  <div className="flex items-center gap-3 text-green-400 border-b border-gray-800 pb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                    <span className="text-lg font-bold uppercase tracking-widest">Operation Successful</span>
+                  </div>
+                  
+                  <div className="bg-black border border-gray-800 rounded-lg p-5">
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">SHA-256 Digital Seal</p>
+                    <p className="text-green-400 font-mono text-sm break-all font-bold">
+                       {result.fingerprint}
+                    </p>
+                  </div>
+                  
+                  <button onClick={handleClose} className="px-6 py-4 w-full bg-gray-900 border border-gray-700 hover:bg-gray-800 text-white font-bold uppercase tracking-widest text-sm rounded-lg transition duration-300">
+                    Acknowledge & Close
+                  </button>
+               </div>
+            )}
+          </div>
+        </div>
+      )}
 
     </div>
   );
