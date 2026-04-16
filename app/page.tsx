@@ -17,6 +17,10 @@ export default function Home() {
       router.push('/pixel-vault');
       return;
     }
+    if (vaultName === 'Audio Vault') {
+      router.push('/audio-vault');
+      return;
+    }
     setActiveVault(vaultName);
     setPasscode('');
     setFile(null);
