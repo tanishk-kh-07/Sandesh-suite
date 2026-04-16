@@ -330,11 +330,6 @@ export default function AudioVault() {
 
             {!isProcessing && (
               <div className="mt-4 pt-6 border-t border-gray-900 flex flex-col md:flex-row items-center justify-between gap-6">
-                 <Link href="/video-vault" className="text-gray-500 hover:text-orange-400 font-mono text-xs uppercase tracking-widest flex items-center gap-2 transition px-4 py-2 rounded border border-transparent hover:border-orange-900 bg-transparent hover:bg-orange-950/20">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg>
-                    Plan B: Acoustic Analysis Flagged?<br/>Pivot to Video Vault
-                 </Link>
-                 
                  <button 
                    onClick={onExecute}
                    disabled={!coverFile || !secretFile || !passcode || securityStatus !== 'ok'}
