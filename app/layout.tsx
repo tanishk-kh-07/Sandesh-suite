@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Rajdhani } from "next/font/google";
 import "./globals.css";
+import { ToastProvider } from "./components/Toast";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -29,8 +30,9 @@ export default function RootLayout({
       className={`${inter.variable} ${rajdhani.variable} h-full antialiased dark`}
     >
       <body className="min-h-full flex flex-col font-sans bg-black text-gray-100">
-        <div className="flex-grow">{children}</div>
-        <footer className="border-t border-gray-900 bg-gray-950 py-4 mt-auto">
+        <ToastProvider>
+          <div className="flex-grow">{children}</div>
+          <footer className="border-t border-gray-900 bg-gray-950 py-4 mt-auto">
           <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-center sm:justify-between gap-4">
              <p className="text-gray-600 text-xs font-mono tracking-widest uppercase">Sandesh Suite v3.2.0-Alpha</p>
              <div className="flex items-center gap-4">
@@ -45,6 +47,7 @@ export default function RootLayout({
              </div>
           </div>
         </footer>
+        </ToastProvider>
       </body>
     </html>
   );

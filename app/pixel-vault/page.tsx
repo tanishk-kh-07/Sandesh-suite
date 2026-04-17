@@ -4,6 +4,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AutoDestructTracker from '../components/AutoDestructTracker';
+import { useToast } from '../components/Toast';
+import TerminalOverlay from '../components/TerminalOverlay';
 
 export default function PixelVault() {
   const router = useRouter();
@@ -14,7 +16,11 @@ export default function PixelVault() {
   const [capacity, setCapacity] = useState<number>(0); // in bytes
   
   const [secretText, setSecretText] = useState('');
+  const [passcode, setPasscode] = useState('');
+  const [frameCount, setFrameCount] = useState('');
   const [isLsbMatching, setIsLsbMatching] = useState(true);
+  
+  const toast = useToast();
   
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -28,6 +34,8 @@ export default function PixelVault() {
     setDimensions(null);
     setCapacity(0);
     setSecretText('');
+    setPasscode('');
+    setFrameCount('');
     setShowResult(false);
     setSecurityStatus('idle');
   };
@@ -50,7 +58,7 @@ export default function PixelVault() {
 
   const handleFile = (selectedFile: File) => {
     if (!selectedFile.type.match('image/(png|bmp)')) {
-      alert('Only .png and .bmp formats are supported for lossless operations.');
+      toast.error('Integrity Check Failed: Only .png and .bmp formats are supported.');
       return;
     }
     setFile(selectedFile);
@@ -96,11 +104,16 @@ export default function PixelVault() {
 
   const onExecute = () => {
     if (!file || payloadSize > capacity) return;
+    if (!secretText || !passcode || !frameCount || parseInt(frameCount, 10) < 0) {
+      toast.error('Integrity Check Failed: Valid Passcode and Frame Count (>= 0) required.');
+      return;
+    }
     setIsProcessing(true);
     // Simulate real execution time
     setTimeout(() => {
       setIsProcessing(false);
       setShowResult(true);
+      toast.success('Vault Sealed');
     }, 2000);
   };
 
@@ -230,11 +243,38 @@ export default function PixelVault() {
                 <div className="flex flex-col h-full gap-4">
                   <label className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Secret Bitstream (Raw Text)</label>
                   <textarea 
-                    className="w-full flex-grow min-h-[200px] bg-black border border-gray-800 text-green-400 font-mono p-4 rounded-xl focus:outline-none focus:border-green-500 transition shadow-inner placeholder-gray-700 resize-none selection:bg-green-900"
+                    className="w-full flex-grow min-h-[120px] bg-black border border-gray-800 text-green-400 font-mono p-4 rounded-xl focus:outline-none focus:border-green-500 transition shadow-inner placeholder-gray-700 resize-none selection:bg-green-900 disabled:opacity-50 disabled:cursor-not-allowed"
                     placeholder="Enter classified data payload here..."
                     value={secretText}
                     onChange={(e) => setSecretText(e.target.value)}
+                    disabled={isProcessing}
                   />
+
+                  <div className="flex gap-4 w-full">
+                    <div className="flex-1">
+                      <label className="block text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Determin. Seed (Passcode)</label>
+                      <input 
+                        type="password" 
+                        value={passcode}
+                        onChange={(e) => setPasscode(e.target.value)}
+                        disabled={isProcessing}
+                        className="w-full bg-black border border-gray-800 text-green-400 font-mono p-3 rounded-lg focus:outline-none focus:border-green-500 transition disabled:opacity-50"
+                        placeholder="AES-256 Key"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Frame Count (Meta)</label>
+                      <input 
+                        type="number" 
+                        min="0"
+                        value={frameCount}
+                        onChange={(e) => setFrameCount(e.target.value)}
+                        disabled={isProcessing}
+                        className="w-full bg-black border border-gray-800 text-green-400 font-mono p-3 rounded-lg focus:outline-none focus:border-green-500 transition disabled:opacity-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        placeholder="e.g. 1337"
+                      />
+                    </div>
+                  </div>
                   
                   <div className="bg-gray-950 p-5 rounded-xl border border-gray-800 flex items-center justify-between gap-4 mt-2">
                     <div className="flex flex-col gap-1">
@@ -252,7 +292,8 @@ export default function PixelVault() {
 
                     <button 
                       onClick={() => setIsLsbMatching(!isLsbMatching)}
-                      className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none ${isLsbMatching ? 'bg-green-500' : 'bg-gray-700'}`}
+                      disabled={isProcessing}
+                      className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none disabled:opacity-50 ${isLsbMatching ? 'bg-green-500' : 'bg-gray-700'}`}
                     >
                       <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${isLsbMatching ? 'translate-x-6' : 'translate-x-1'}`} />
                     </button>
@@ -269,7 +310,7 @@ export default function PixelVault() {
                
                <button 
                  onClick={onExecute}
-                 disabled={!file || !secretText || payloadSize > capacity || isProcessing || securityStatus !== 'ok'}
+                 disabled={!file || !secretText || !passcode || !frameCount || payloadSize > capacity || isProcessing || securityStatus !== 'ok'}
                  className="w-full md:w-auto md:px-12 py-5 bg-green-600 hover:bg-green-500 text-black font-bold uppercase tracking-widest rounded-xl transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 relative overflow-hidden group"
                >
                  {isProcessing ? (
@@ -286,6 +327,8 @@ export default function PixelVault() {
                  )}
                </button>
             </div>
+            
+            {isProcessing && <TerminalOverlay colorTheme="green" />}
           </>
         ) : (
           /* Visual Comparison Screen */

@@ -24,6 +24,7 @@ export async function POST(request: NextRequest) {
         
         const passcode = formData.get('passcode');
         const file = formData.get('file') as File;
+        const frameCount = formData.get('frameCount'); // Used for validation
 
         if (!passcode || typeof passcode !== 'string') {
             return NextResponse.json({ error: 'Missing or invalid passcode' }, { status: 400 });
@@ -31,6 +32,10 @@ export async function POST(request: NextRequest) {
 
         if (!file) {
             return NextResponse.json({ error: 'Missing file upload' }, { status: 400 });
+        }
+
+        if (frameCount && parseInt(frameCount as string, 10) < 0) {
+            return NextResponse.json({ error: 'System Exception: Frame variance index out of acceptable bounds (must be >= 0).' }, { status: 400 });
         }
 
         // Setup temporary file path
@@ -45,18 +50,6 @@ export async function POST(request: NextRequest) {
         // Zero-Persistence: Force buffer dereference to trigger V8 Garbage Collector
         buffer = null;
 
-        // -------------------------------------------------------------------------------------
-        // TODO: Automated FFmpeg Transcoding Scaffold
-        // -------------------------------------------------------------------------------------
-        // To expand utility capabilities while maintaining cryptographical lossless standard:
-        // Before deriving key, intercept `.jpg`/`.mp3` streams via MIME scan.
-        // spawn a `child_process.execFile('ffmpeg')` mapped:
-        // `ffmpeg -i ${tempFilePath} -vcodec bmp ${tempFilePath.bmp}` (Pixel)
-        // `ffmpeg -i ${tempFilePath} -acodec pcm_s16le -ar 44100 ${tempFilePath.wav}` (Audio)
-        // Ensure to fs.rm obsolete lossy carriers post-convert before passing the 
-        // derived uncompressed matrix downwards to engine logic.
-        // -------------------------------------------------------------------------------------
-
         // Calculate KDF (Key Stretching)
         const derivedKey = deriveKey(passcode);
 
@@ -64,14 +57,25 @@ export async function POST(request: NextRequest) {
         const binaryPath = await ensureBinaryCompiled();
 
         // Execute the compiled executable with derived key and AES-256-CTR mode
-        const { stdout, stderr } = await execFileAsync(binaryPath, [derivedKey, tempFilePath, '--mode=aes-256-ctr']);
+        // Hardened execution: 10 second timeout ceiling to prevent node process hanging
+        const { stdout, stderr } = await execFileAsync(binaryPath, [derivedKey, tempFilePath, '--mode=aes-256-ctr'], {
+            timeout: 10000, // 10s ceiling
+            maxBuffer: 1024 * 1024 * 50 // 50MB max output buffer
+        });
 
         if (stderr) {
             console.warn('C++ Execution Stderr:', stderr);
         }
 
         // Parse standard output as JSON
-        const result = JSON.parse(stdout);
+        let result = null;
+        try {
+            result = JSON.parse(stdout);
+        } catch (jsonErr) {
+            console.error('Binary yield non-JSON standard output. Corruption likely.', jsonErr);
+            return NextResponse.json({ error: 'Bridge Integrity Fault: Binary output corrupted or malformed.' }, { status: 500 });
+        }
+
         cryptFilePath = result.outputPath;
 
         // Calculate Digital Seal (SHA-256 of the output file)
@@ -97,7 +101,20 @@ export async function POST(request: NextRequest) {
 
     } catch (error: any) {
         console.error('API Error:', error);
-        return NextResponse.json({ error: 'Failed to process vault operation', details: error.message }, { status: 500 });
+
+        // Graceful Fallback Checks
+        if (error.killed && (error.signal === 'SIGTERM' || error.code === 'ETIMEDOUT')) {
+            return NextResponse.json({ 
+                error: 'Crypto Engine Timeout. Process execution exceeded 10-second ceiling.', 
+                code: 'TIMEOUT' 
+            }, { status: 504 }); // 504 Gateway Timeout semantics
+        }
+
+        return NextResponse.json({ 
+            error: 'Failed to process vault operation. Fatal engine panic.', 
+            details: error.message 
+        }, { status: 500 });
+
     } finally {
         // Zero-Persistence Server enforcement: Mathematically scrub SSD temp tracks
         if (tempFilePath) {

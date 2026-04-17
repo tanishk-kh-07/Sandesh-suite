@@ -4,6 +4,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AutoDestructTracker from '../components/AutoDestructTracker';
+import { useToast } from '../components/Toast';
+import TerminalOverlay from '../components/TerminalOverlay';
 
 export default function AudioVault() {
   const router = useRouter();
@@ -16,13 +18,14 @@ export default function AudioVault() {
   
   const [isSpreadSpectrum, setIsSpreadSpectrum] = useState(true);
   const [passcode, setPasscode] = useState('');
+  const [frameCount, setFrameCount] = useState('');
+  
+  const toast = useToast();
   
   const [activeDropzone, setActiveDropzone] = useState<'cover' | 'secret' | null>(null);
   
   const [isProcessing, setIsProcessing] = useState(false);
   const [showResult, setShowResult] = useState(false);
-  const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
-  const terminalEndRef = useRef<HTMLDivElement>(null);
   const [securityStatus, setSecurityStatus] = useState<'idle' | 'checking' | 'ok'>('idle');
 
   const handleDestruct = () => {
@@ -33,7 +36,7 @@ export default function AudioVault() {
     setCoverUrl(null);
     setSecretUrl(null);
     setPasscode('');
-    setTerminalLogs([]);
+    setFrameCount('');
     setShowResult(false);
     setSecurityStatus('idle');
   };
@@ -48,7 +51,7 @@ export default function AudioVault() {
 
   const handleFileDrop = (target: 'cover' | 'secret', selectedFile: File) => {
     if (!selectedFile.type.match('audio/wav') && !selectedFile.name.endsWith('.wav')) {
-      alert('Only .wav files are supported for high-fidelity audio operations.');
+      toast.error('Integrity Check Failed: Only .wav files are supported.');
       return;
     }
     
@@ -87,52 +90,19 @@ export default function AudioVault() {
     }
   };
 
-  useEffect(() => {
-    if (terminalEndRef.current) {
-      terminalEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [terminalLogs]);
-
-
   const onExecute = () => {
-    if (!coverFile || !secretFile || !passcode) return;
+    if (!coverFile || !secretFile) return;
+    if (!passcode || !frameCount || parseInt(frameCount, 10) < 0) {
+      toast.error('Integrity Check Failed: Valid Passcode and Frame Count (>= 0) required.');
+      return;
+    }
     setIsProcessing(true);
-    setTerminalLogs([
-       '> Initializing Audio Vault Engine via Bridge...',
-       '> Verifying .WAV structural integrity...'
-    ]);
 
-    // Simulate real execution timeline
-    let logs = [
-      '> Carrier: 44.1kHz / 16-bit PCM Verified.',
-      '> Payload: Secret Audio Block Synchronized.',
-      isSpreadSpectrum ? '> Deploying Pseudorandom Logarithmic Jump Sequence...' : '> Deploying Standard LSB Weaving...',
-    ];
-    let step = 0;
-
-    const intervalId = setInterval(() => {
-      setTerminalLogs(prev => [...prev, logs[step]]);
-      step++;
-
-      if (step === logs.length) {
-         clearInterval(intervalId);
-         
-         // Start fast weaving simulation
-         let blocks = 0;
-         const weaveInterval = setInterval(() => {
-            blocks++;
-            setTerminalLogs(prev => [...prev, `> [SYSTEM] Synchronized LSB weaving... [Frame 0x${Math.floor(Math.random()*10000).toString(16).toUpperCase()}]`]);
-            if (blocks > 10) {
-              clearInterval(weaveInterval);
-              setTerminalLogs(prev => [...prev, '> Encryption Complete. Preparing Sonic Transparency Test.']);
-              setTimeout(() => {
-                setIsProcessing(false);
-                setShowResult(true);
-              }, 1000);
-            }
-         }, 150);
-      }
-    }, 600);
+    setTimeout(() => {
+        setIsProcessing(false);
+        setShowResult(true);
+        toast.success('Auditory Vault Sealed');
+    }, 2000);
   };
 
   return (
@@ -161,25 +131,6 @@ export default function AudioVault() {
       <main className="flex-grow p-6 md:p-10 max-w-6xl mx-auto w-full flex flex-col gap-8">
         {!showResult ? (
           <>
-            {isProcessing ? (
-               <div className="w-full flex-grow flex flex-col">
-                  <h2 className="text-2xl font-bold text-blue-500 uppercase tracking-wider mb-6 pb-2 border-b border-blue-900/50" style={{ fontFamily: 'var(--font-rajdhani)' }}>
-                    Terminal Execution Shell
-                  </h2>
-                  <div className="bg-gray-950 border border-gray-800 rounded-xl p-6 font-mono text-sm leading-relaxed flex flex-col flex-grow shadow-inner relative overflow-hidden h-96">
-                     <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent shadow-[0_0_20px_rgba(59,130,246,1)]"></div>
-                     <div className="flex flex-col gap-2 relative z-10 overflow-y-auto">
-                        <div className="text-blue-500 font-bold mb-4">Sandesh-Suite v3.2.0-Alpha. Starting Audio Matrix Process...</div>
-                        {terminalLogs.map((log, i) => (
-                          <div key={i} className="text-gray-300 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                            {log}
-                          </div>
-                        ))}
-                        <div ref={terminalEndRef} />
-                     </div>
-                  </div>
-               </div>
-            ) : (
                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                   {/* Left Column: File Dropzones */}
                   <div className="flex flex-col gap-6">
@@ -280,8 +231,22 @@ export default function AudioVault() {
                           type="password" 
                           value={passcode}
                           onChange={(e) => setPasscode(e.target.value)}
-                          className="w-full bg-black border border-gray-800 text-blue-400 font-mono p-4 rounded-xl focus:outline-none focus:border-blue-500 transition shadow-inner placeholder-gray-700 selection:bg-blue-900"
+                          disabled={isProcessing}
+                          className="w-full bg-black border border-gray-800 text-blue-400 font-mono p-4 rounded-xl focus:outline-none focus:border-blue-500 transition disabled:opacity-50 shadow-inner placeholder-gray-700 selection:bg-blue-900"
                           placeholder="Enter AES-256 Passcode..."
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Frame Count (Meta)</label>
+                        <input 
+                          type="number" 
+                          min="0"
+                          value={frameCount}
+                          onChange={(e) => setFrameCount(e.target.value)}
+                          disabled={isProcessing}
+                          className="w-full bg-black border border-gray-800 text-blue-400 font-mono p-4 rounded-xl focus:outline-none focus:border-blue-500 transition disabled:opacity-50 shadow-inner placeholder-gray-700 selection:bg-blue-900 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          placeholder="e.g. 1337"
                         />
                       </div>
                       
@@ -302,7 +267,8 @@ export default function AudioVault() {
 
                           <button 
                             onClick={() => setIsSpreadSpectrum(!isSpreadSpectrum)}
-                            className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none ${isSpreadSpectrum ? 'bg-blue-500' : 'bg-gray-700'}`}
+                            disabled={isProcessing}
+                            className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none disabled:opacity-50 ${isSpreadSpectrum ? 'bg-blue-500' : 'bg-gray-700'}`}
                           >
                             <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${isSpreadSpectrum ? 'translate-x-6' : 'translate-x-1'}`} />
                           </button>
@@ -326,13 +292,12 @@ export default function AudioVault() {
                     </div>
                   </div>
                </div>
-            )}
 
-            {!isProcessing && (
+            {!isProcessing ? (
               <div className="mt-4 pt-6 border-t border-gray-900 flex flex-col md:flex-row items-center justify-between gap-6">
                  <button 
                    onClick={onExecute}
-                   disabled={!coverFile || !secretFile || !passcode || securityStatus !== 'ok'}
+                   disabled={!coverFile || !secretFile || !passcode || !frameCount || parseInt(frameCount,10)<0 || securityStatus !== 'ok'}
                    className="w-full md:w-auto md:px-12 py-5 bg-blue-600 hover:bg-blue-500 text-black font-bold uppercase tracking-widest rounded-xl transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 relative overflow-hidden group ml-auto"
                  >
                    <span className="relative z-10">Execute Encapsulation</span>
@@ -340,6 +305,8 @@ export default function AudioVault() {
                    <div className="absolute inset-0 bg-white/20 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
                  </button>
               </div>
+            ) : (
+                <TerminalOverlay colorTheme="blue" />
             )}
           </>
         ) : (
@@ -358,7 +325,7 @@ export default function AudioVault() {
                         <p className="text-gray-400 text-sm">Target vector synchronized using {isSpreadSpectrum ? 'Spread-Spectrum Jumping' : 'Linear Scattering'}.</p>
                      </div>
                   </div>
-                  <button onClick={() => {setShowResult(false); setIsProcessing(false); setTerminalLogs([]);}} className="px-6 py-3 bg-gray-900 hover:bg-gray-800 border border-gray-700 rounded-lg text-sm font-bold uppercase tracking-widest text-white transition">
+                  <button onClick={() => {setShowResult(false); setIsProcessing(false);}} className="px-6 py-3 bg-gray-900 hover:bg-gray-800 border border-gray-700 rounded-lg text-sm font-bold uppercase tracking-widest text-white transition">
                     New Operation
                   </button>
                </div>

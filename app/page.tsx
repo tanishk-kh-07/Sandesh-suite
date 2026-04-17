@@ -3,12 +3,15 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AutoDestructTracker from './components/AutoDestructTracker';
+import { useToast } from './components/Toast';
 
 export default function Home() {
   const router = useRouter();
   
   // Dashboard State
   const [dashboardMode, setDashboardMode] = useState<'encapsulate' | 'extract'>('encapsulate');
+  
+  const toast = useToast();
 
   // Extraction Protocol State
   const [extractMode, setExtractMode] = useState<'image' | 'audio'>('image');
@@ -44,11 +47,11 @@ export default function Home() {
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const dropped = e.dataTransfer.files[0];
       if (extractMode === 'image' && !dropped.type.match('image/(png|bmp)')) {
-          alert('Invalid format. Image retrieval requires .png or .bmp');
+          toast.error('Invalid format. Image retrieval requires .png or .bmp');
           return;
       }
       if (extractMode === 'audio' && !dropped.type.match('audio/wav') && !dropped.name.endsWith('.wav')) {
-          alert('Invalid format. Audio retrieval requires .wav');
+          toast.error('Invalid format. Audio retrieval requires .wav');
           return;
       }
       setExtractFile(dropped);
@@ -57,13 +60,21 @@ export default function Home() {
   };
 
   const handleExecuteExtraction = () => {
-    if (!extractFile || !extractPasscode || !extractFrameCount) return;
+    if (!extractFile) {
+        toast.error('Vault Breach Failed: Artifact missing.');
+        return;
+    }
+    if (!extractPasscode || !extractFrameCount || parseInt(extractFrameCount, 10) < 0) {
+        toast.error('Vault Breach Failed: Invalid Passcode or Frame Count.');
+        return;
+    }
 
     setExtractionStatus('cracking');
 
     // Simulate cracking delay
     setTimeout(() => {
       setExtractionStatus('success');
+      toast.success('Matrix Cracked Successfully.');
     }, 2800);
   };
 
@@ -246,7 +257,8 @@ export default function Home() {
                           type="password" 
                           value={extractPasscode}
                           onChange={(e) => { setExtractPasscode(e.target.value); setExtractionStatus('idle'); }}
-                          className={`w-full bg-black border border-gray-800 text-${currentNeonColor}-400 font-mono p-4 rounded-lg focus:outline-none focus:border-${currentNeonColor}-500 transition`}
+                          disabled={extractionStatus === 'cracking'}
+                          className={`w-full bg-black border border-gray-800 text-${currentNeonColor}-400 font-mono p-4 rounded-lg focus:outline-none focus:border-${currentNeonColor}-500 transition disabled:opacity-50`}
                           placeholder="Deterministic Seed Key..."
                         />
                       </div>
@@ -263,9 +275,11 @@ export default function Home() {
                         </div>
                         <input 
                           type="number" 
+                          min="0"
                           value={extractFrameCount}
                           onChange={(e) => { setExtractFrameCount(e.target.value); setExtractionStatus('idle'); }}
-                          className={`w-full bg-black border border-gray-800 text-${currentNeonColor}-400 font-mono p-4 rounded-lg focus:outline-none focus:border-${currentNeonColor}-500 transition [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
+                          disabled={extractionStatus === 'cracking'}
+                          className={`w-full bg-black border border-gray-800 text-${currentNeonColor}-400 font-mono p-4 rounded-lg focus:outline-none focus:border-${currentNeonColor}-500 transition disabled:opacity-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
                           placeholder="e.g. 1337"
                         />
                       </div>
