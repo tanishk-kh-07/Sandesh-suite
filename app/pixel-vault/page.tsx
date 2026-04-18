@@ -12,6 +12,7 @@ export default function PixelVault() {
   
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [encodedUrl, setEncodedUrl] = useState<string | null>(null);
   const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
   const [capacity, setCapacity] = useState<number>(0); // in bytes
   
@@ -30,7 +31,9 @@ export default function PixelVault() {
   const handleDestruct = () => {
     setFile(null);
     if (previewUrl) URL.revokeObjectURL(previewUrl);
+    if (encodedUrl) URL.revokeObjectURL(encodedUrl);
     setPreviewUrl(null);
+    setEncodedUrl(null);
     setDimensions(null);
     setCapacity(0);
     setSecretText('');
@@ -53,8 +56,9 @@ export default function PixelVault() {
     return () => {
       // Cleanup object URL
       if (previewUrl) URL.revokeObjectURL(previewUrl);
+      if (encodedUrl) URL.revokeObjectURL(encodedUrl);
     };
-  }, [previewUrl]);
+  }, [previewUrl, encodedUrl]);
 
   const handleFile = (selectedFile: File) => {
     if (!selectedFile.type.match('image/(png|bmp)')) {
@@ -102,19 +106,43 @@ export default function PixelVault() {
     }
   };
 
-  const onExecute = () => {
+  const onExecute = async () => {
     if (!file || payloadSize > capacity) return;
     if (!secretText || !passcode || !frameCount || parseInt(frameCount, 10) < 0) {
       toast.error('Integrity Check Failed: Valid Passcode and Frame Count (>= 0) required.');
       return;
     }
     setIsProcessing(true);
-    // Simulate real execution time
-    setTimeout(() => {
-      setIsProcessing(false);
-      setShowResult(true);
-      toast.success('Vault Sealed');
-    }, 2000);
+    
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('passcode', passcode);
+        formData.append('frameCount', frameCount);
+        formData.append('secretText', secretText);
+        formData.append('isLsbMatching', String(isLsbMatching));
+
+        const res = await fetch('/api/vault/process', {
+            method: 'POST',
+            body: formData,
+        });
+
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error || 'Network response was not ok');
+        }
+
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        setEncodedUrl(url);
+        
+        setIsProcessing(false);
+        setShowResult(true);
+        toast.success('Matrix Encapsulated Successfully.');
+    } catch (err: any) {
+        setIsProcessing(false);
+        toast.error(err.message || 'Fatal Execution Error. Backend failed to respond.');
+    }
   };
 
   // Human readable bytes
@@ -380,9 +408,8 @@ export default function PixelVault() {
                           <span className="text-green-600 font-mono text-xs">Encapsulated</span>
                        </div>
                        <div className="bg-black rounded-lg border border-gray-800 overflow-hidden relative group h-[400px] flex items-center justify-center shadow-[0_0_30px_rgba(0,255,65,0.05)]">
-                          {/* Simulated identical stego image for UI check */}
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          {previewUrl && <img src={previewUrl} alt="Stego simulated" className="max-w-full max-h-full object-contain" />}
+                          {encodedUrl && <img src={encodedUrl} alt="Stego simulated" className="max-w-full max-h-full object-contain" />}
                           <div className="absolute inset-0 bg-green-500 mix-blend-color-burn opacity-[0.02] pointer-events-none"></div>
                        </div>
                     </div>
@@ -390,9 +417,21 @@ export default function PixelVault() {
                  
                  <div className="mt-4 p-4 bg-blue-950/20 border border-blue-900/30 rounded-lg flex gap-4">
                     <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-blue-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-                    <p className="text-sm text-gray-300 leading-relaxed">
-                      Verification complete. Optical analysis detects zero anomaly signatures. The bitstream variance is constrained to the lowest topological layer. You may confidently export the Stego Artifact.
-                    </p>
+                    <div className="flex-grow">
+                      <p className="text-sm text-gray-300 leading-relaxed mb-4">
+                        Verification complete. Optical analysis detects zero anomaly signatures. The bitstream variance is constrained to the lowest topological layer. You may confidently export the Stego Artifact.
+                      </p>
+                      {encodedUrl && (
+                        <a 
+                           href={encodedUrl} 
+                           download="Pixel-Vault-Stego.png"
+                           className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-500 text-black font-bold uppercase tracking-widest text-sm rounded-lg transition shadow-[0_0_15px_rgba(0,255,65,0.4)]"
+                        >
+                           <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                           Download Stego Artifact
+                        </a>
+                      )}
+                    </div>
                  </div>
                </div>
 

@@ -19,6 +19,7 @@ export default function Home() {
   const [extractPasscode, setExtractPasscode] = useState('');
   const [extractFrameCount, setExtractFrameCount] = useState('');
   const [extractionStatus, setExtractionStatus] = useState<'idle' | 'cracking' | 'success'>('idle');
+  const [decryptedPayload, setDecryptedPayload] = useState<string | null>(null);
 
   // UI Colors derived from mode
   const currentNeonColor = extractMode === 'image' ? 'green' : 'blue';
@@ -29,6 +30,7 @@ export default function Home() {
      setExtractPasscode('');
      setExtractFrameCount('');
      setExtractionStatus('idle');
+     setDecryptedPayload(null);
   };
 
   const handleInitialize = (vaultName: string) => {
@@ -59,7 +61,7 @@ export default function Home() {
     }
   };
 
-  const handleExecuteExtraction = () => {
+  const handleExecuteExtraction = async () => {
     if (!extractFile) {
         toast.error('Vault Breach Failed: Artifact missing.');
         return;
@@ -71,11 +73,31 @@ export default function Home() {
 
     setExtractionStatus('cracking');
 
-    // Simulate cracking delay
-    setTimeout(() => {
-      setExtractionStatus('success');
-      toast.success('Matrix Cracked Successfully.');
-    }, 2800);
+    try {
+        const formData = new FormData();
+        formData.append('file', extractFile);
+        formData.append('passcode', extractPasscode);
+        formData.append('frameCount', extractFrameCount);
+
+        const endpoint = extractMode === 'image' ? '/api/vault/extract' : '/api/audio/extract';
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            body: formData,
+        });
+
+        const data = await res.json();
+        
+        if (!res.ok) {
+            throw new Error(data.error || 'Extraction failed');
+        }
+
+        setDecryptedPayload(data.payload);
+        setExtractionStatus('success');
+        toast.success('Matrix Cracked Successfully.');
+    } catch (err: any) {
+        setExtractionStatus('idle'); 
+        toast.error(err.message || 'Integrity Check Failed / Corrupted File');
+    }
   };
 
   return (
@@ -322,15 +344,32 @@ export default function Home() {
                          </div>
                       </div>
 
-                      <div className="bg-black p-5 rounded-lg border border-gray-800 flex flex-col gap-2 mb-8">
-                         <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">SHA-256 Digital Fingerprint Checksum</span>
-                         <span className={`text-${currentNeonColor}-400 font-mono text-sm sm:text-base break-all font-bold`}>
-                           e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
-                         </span>
+                      <div className={`mb-8 w-full relative group`}>
+                         <div className={`absolute -inset-1 bg-gradient-to-r from-${currentNeonColor}-600 to-${currentNeonColor}-400 rounded-xl blur opacity-25 group-hover:opacity-60 transition duration-1000 group-hover:duration-200`}></div>
+                         <div className="relative bg-black rounded-lg border border-gray-800 p-6 shadow-inner">
+                             <span className={`text-xs font-bold text-white uppercase tracking-widest px-2 py-1 bg-${currentNeonColor}-900/80 rounded absolute -top-3 left-4 border border-${currentNeonColor}-500/50 shadow-[0_0_15px_rgba(var(--tw-colors-${currentNeonColor}-500),1)]`}>
+                               [ DECLASSIFIED PAYLOAD ]
+                             </span>
+                             
+                             {extractMode === 'image' ? (
+                                 <textarea 
+                                   readOnly
+                                   value={decryptedPayload || ''}
+                                   className={`w-full min-h-[120px] bg-transparent border-none text-${currentNeonColor}-400 font-mono focus:outline-none resize-none pt-2`}
+                                 />
+                             ) : (
+                                 <div className="flex flex-col gap-4 pt-2">
+                                    <audio controls src={`data:audio/wav;base64,${decryptedPayload}`} className="w-full" />
+                                    <a href={`data:audio/wav;base64,${decryptedPayload}`} download="Declassified-Audio.wav" className={`text-center text-xs text-${currentNeonColor}-400 hover:text-white uppercase tracking-widest border border-gray-800 bg-gray-950 hover:bg-gray-900 py-2 rounded transition`}>
+                                       Download Raw Auditory Payload
+                                    </a>
+                                 </div>
+                             )}
+                         </div>
                       </div>
 
                       <button 
-                        onClick={() => { setExtractionStatus('idle'); setExtractFile(null); setExtractPasscode(''); setExtractFrameCount(''); }}
+                        onClick={() => { setExtractionStatus('idle'); setExtractFile(null); setExtractPasscode(''); setExtractFrameCount(''); setDecryptedPayload(null); }}
                         className={`w-full py-5 bg-${currentNeonColor}-600 hover:bg-${currentNeonColor}-500 text-black font-bold uppercase tracking-widest text-sm sm:text-lg rounded-xl transition duration-300 shadow-[0_0_20px_rgba(var(--tw-colors-${currentNeonColor}-500),0.3)] flex items-center justify-center gap-3`}
                       >
                          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 sm:w-6 sm:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>

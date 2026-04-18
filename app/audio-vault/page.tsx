@@ -15,6 +15,7 @@ export default function AudioVault() {
   
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
   const [secretUrl, setSecretUrl] = useState<string | null>(null);
+  const [encodedUrl, setEncodedUrl] = useState<string | null>(null);
   
   const [isSpreadSpectrum, setIsSpreadSpectrum] = useState(true);
   const [passcode, setPasscode] = useState('');
@@ -35,6 +36,7 @@ export default function AudioVault() {
     setSecretFile(null);
     setCoverUrl(null);
     setSecretUrl(null);
+    setEncodedUrl(null);
     setPasscode('');
     setFrameCount('');
     setShowResult(false);
@@ -46,8 +48,9 @@ export default function AudioVault() {
     return () => {
       if (coverUrl) URL.revokeObjectURL(coverUrl);
       if (secretUrl) URL.revokeObjectURL(secretUrl);
+      if (encodedUrl) URL.revokeObjectURL(encodedUrl);
     };
-  }, [coverUrl, secretUrl]);
+  }, [coverUrl, secretUrl, encodedUrl]);
 
   const handleFileDrop = (target: 'cover' | 'secret', selectedFile: File) => {
     if (!selectedFile.type.match('audio/wav') && !selectedFile.name.endsWith('.wav')) {
@@ -90,7 +93,7 @@ export default function AudioVault() {
     }
   };
 
-  const onExecute = () => {
+  const onExecute = async () => {
     if (!coverFile || !secretFile) return;
     if (!passcode || !frameCount || parseInt(frameCount, 10) < 0) {
       toast.error('Integrity Check Failed: Valid Passcode and Frame Count (>= 0) required.');
@@ -98,11 +101,34 @@ export default function AudioVault() {
     }
     setIsProcessing(true);
 
-    setTimeout(() => {
+    try {
+        const formData = new FormData();
+        formData.append('coverFile', coverFile);
+        formData.append('passcode', passcode);
+        formData.append('frameCount', frameCount);
+        formData.append('secretFile', secretFile);
+
+        const res = await fetch('/api/audio/process', {
+            method: 'POST',
+            body: formData,
+        });
+
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error || 'Network response was not ok');
+        }
+
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        setEncodedUrl(url);
+        
         setIsProcessing(false);
         setShowResult(true);
-        toast.success('Auditory Vault Sealed');
-    }, 2000);
+        toast.success('Auditory Vault Sealed Successfully.');
+    } catch (err: any) {
+        setIsProcessing(false);
+        toast.error(err.message || 'Fatal Execution Error. Backend failed to respond.');
+    }
   };
 
   return (
@@ -360,8 +386,7 @@ export default function AudioVault() {
                     <div className="flex flex-col gap-4">
                        <div className="flex justify-between items-center bg-blue-900/20 border border-blue-900/50 px-4 py-3 rounded-lg">
                           <span className="font-bold text-blue-400 uppercase text-xs tracking-wider">Encrypted Audio <br/><span className="text-[10px] text-blue-500/70 font-normal">Secure Artifact</span></span>
-                          {/* GUI validation simulator just uses same cover audio here */}
-                          {coverUrl && <audio controls src={coverUrl} className="h-10 w-48" />}
+                          {encodedUrl && <audio controls src={encodedUrl} className="h-10 w-48" />}
                        </div>
                        <div className="w-full flex justify-center py-6 border border-blue-900/40 rounded-lg bg-black box-border px-4 shadow-[0_0_20px_rgba(59,130,246,0.05)]">
                            {/* Sound wave visual mockup */}
@@ -376,9 +401,21 @@ export default function AudioVault() {
                  
                  <div className="mt-4 p-4 bg-purple-950/20 border border-purple-900/40 rounded-lg flex gap-4">
                     <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-purple-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-                    <p className="text-sm text-gray-300 leading-relaxed">
-                      Auditory verification complete. Sonic Transparency confirmed. The human ear and standard digital signal processing cannot differentiate the Encrypted Audio from the Normal Audio. The payload is securely woven.
-                    </p>
+                    <div className="flex-grow">
+                      <p className="text-sm text-gray-300 leading-relaxed mb-4">
+                        Auditory verification complete. Sonic Transparency confirmed. The human ear and standard digital signal processing cannot differentiate the Encrypted Audio from the Normal Audio. The payload is securely woven.
+                      </p>
+                      {encodedUrl && (
+                        <a 
+                           href={encodedUrl} 
+                           download="Audio-Vault-Stego.wav"
+                           className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-black font-bold uppercase tracking-widest text-sm rounded-lg transition shadow-[0_0_15px_rgba(59,130,246,0.4)]"
+                        >
+                           <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                           Download Stego Audio
+                        </a>
+                      )}
+                    </div>
                  </div>
                </div>
 
