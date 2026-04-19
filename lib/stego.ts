@@ -25,7 +25,13 @@ export function encryptPayload(data: Buffer | string, passcode: string, frameCou
     const lengthBuffer = Buffer.alloc(4);
     lengthBuffer.writeUInt32BE(encryptedText.length, 0);
     
-    return Buffer.concat([lengthBuffer, iv, encryptedText]);
+    const result = Buffer.concat([lengthBuffer, iv, encryptedText]);
+
+    // Zero sensitive key material immediately
+    key.fill(0);
+    iv.fill(0);
+
+    return result;
 }
 
 /**
@@ -44,6 +50,9 @@ export function decryptPayload(payload: Buffer, passcode: string, frameCount: nu
     const decipher = crypto.createDecipheriv('aes-256-ctr', key, iv);
     const decryptedOutput = Buffer.concat([decipher.update(encryptedText), decipher.final()]);
     
+    // Zero sensitive key material
+    key.fill(0);
+
     return decryptedOutput;
 }
 

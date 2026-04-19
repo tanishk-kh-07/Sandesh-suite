@@ -52,9 +52,19 @@ export default function AudioVault() {
     };
   }, [coverUrl, secretUrl, encodedUrl]);
 
+  const MAX_COVER_SIZE = 10 * 1024 * 1024; // 10MB
+  const MAX_SECRET_SIZE = 5 * 1024 * 1024;  // 5MB
+
   const handleFileDrop = (target: 'cover' | 'secret', selectedFile: File) => {
     if (!selectedFile.type.match('audio/wav') && !selectedFile.name.endsWith('.wav')) {
       toast.error('Integrity Check Failed: Only .wav files are supported.');
+      return;
+    }
+    
+    const sizeLimit = target === 'cover' ? MAX_COVER_SIZE : MAX_SECRET_SIZE;
+    const limitLabel = target === 'cover' ? '10MB' : '5MB';
+    if (selectedFile.size > sizeLimit) {
+      toast.error(`${target === 'cover' ? 'Carrier' : 'Payload'} exceeds ${limitLabel} limit (${(selectedFile.size / 1024 / 1024).toFixed(1)}MB).`);
       return;
     }
     

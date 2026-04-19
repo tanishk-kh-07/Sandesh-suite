@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AutoDestructTracker from '../components/AutoDestructTracker';
@@ -60,9 +60,15 @@ export default function PixelVault() {
     };
   }, [previewUrl, encodedUrl]);
 
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
   const handleFile = (selectedFile: File) => {
     if (!selectedFile.type.match('image/(png|bmp)')) {
       toast.error('Integrity Check Failed: Only .png and .bmp formats are supported.');
+      return;
+    }
+    if (selectedFile.size > MAX_FILE_SIZE) {
+      toast.error(`Carrier exceeds 5MB limit (${(selectedFile.size / 1024 / 1024).toFixed(1)}MB). Resize or use a lower resolution image.`);
       return;
     }
     setFile(selectedFile);

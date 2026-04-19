@@ -21,8 +21,40 @@ export default function Home() {
   const [extractionStatus, setExtractionStatus] = useState<'idle' | 'cracking' | 'success'>('idle');
   const [decryptedPayload, setDecryptedPayload] = useState<string | null>(null);
 
-  // UI Colors derived from mode
-  const currentNeonColor = extractMode === 'image' ? 'green' : 'blue';
+  // Static Tailwind class maps (dynamic interpolation like `text-${var}-400` breaks JIT compilation)
+  const colorMap = {
+    image: {
+      text: 'text-green-400',
+      textBright: 'text-green-500',
+      border: 'border-green-500/50',
+      bg: 'bg-green-500/5',
+      bgAccent: 'bg-green-500/20',
+      bgMuted: 'bg-green-900/80',
+      borderAccent: 'border-green-500/50',
+      borderMuted: 'border-green-900/50',
+      bgPanel: 'bg-green-950/10',
+      focusBorder: 'focus:border-green-500',
+      btnBg: 'bg-green-600',
+      btnHover: 'hover:bg-green-500',
+      sideBar: 'bg-green-500',
+    },
+    audio: {
+      text: 'text-blue-400',
+      textBright: 'text-blue-500',
+      border: 'border-blue-500/50',
+      bg: 'bg-blue-500/5',
+      bgAccent: 'bg-blue-500/20',
+      bgMuted: 'bg-blue-900/80',
+      borderAccent: 'border-blue-500/50',
+      borderMuted: 'border-blue-900/50',
+      bgPanel: 'bg-blue-950/10',
+      focusBorder: 'focus:border-blue-500',
+      btnBg: 'bg-blue-600',
+      btnHover: 'hover:bg-blue-500',
+      sideBar: 'bg-blue-500',
+    },
+  };
+  const cc = colorMap[extractMode];
 
   const handleDestruct = () => {
      // Wipe all highly sensitive state
@@ -44,6 +76,8 @@ export default function Home() {
     }
   };
 
+  const MAX_EXTRACT_SIZE = 10 * 1024 * 1024; // 10MB
+
   const onExtractDrop = (e: React.DragEvent) => {
     e.preventDefault();
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
@@ -54,6 +88,10 @@ export default function Home() {
       }
       if (extractMode === 'audio' && !dropped.type.match('audio/wav') && !dropped.name.endsWith('.wav')) {
           toast.error('Invalid format. Audio retrieval requires .wav');
+          return;
+      }
+      if (dropped.size > MAX_EXTRACT_SIZE) {
+          toast.error(`File exceeds 10MB limit (${(dropped.size / 1024 / 1024).toFixed(1)}MB).`);
           return;
       }
       setExtractFile(dropped);
@@ -245,7 +283,7 @@ export default function Home() {
                 <div 
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={onExtractDrop}
-                  className={`relative bg-gray-950 border-2 border-dashed rounded-xl h-64 flex flex-col items-center justify-center transition-all ${extractFile ? `border-${currentNeonColor}-500/50 bg-${currentNeonColor}-500/5` : 'border-gray-700 hover:border-gray-500'}`}
+                  className={`relative bg-gray-950 border-2 border-dashed rounded-xl h-64 flex flex-col items-center justify-center transition-all ${extractFile ? `${cc.border} ${cc.bg}` : 'border-gray-700 hover:border-gray-500'}`}
                 >
                   <input 
                     type="file" 
@@ -260,7 +298,7 @@ export default function Home() {
                        <p className="text-xs mt-1">Requires {extractMode === 'image' ? 'lossless .PNG / .BMP' : '.WAV format'}</p>
                     </div>
                   ) : (
-                    <div className={`text-center flex flex-col items-center p-6 pointer-events-none text-${currentNeonColor}-400`}>
+                    <div className={`text-center flex flex-col items-center p-6 pointer-events-none ${cc.text}`}>
                        <svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 mb-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
                        <p className="font-mono font-bold truncate max-w-[200px]" title={extractFile.name}>{extractFile.name}</p>
                        <span className="text-gray-500 text-xs uppercase tracking-widest mt-2 border border-gray-800 bg-black px-2 py-1 rounded">Artifact Secured</span>
@@ -280,7 +318,7 @@ export default function Home() {
                           value={extractPasscode}
                           onChange={(e) => { setExtractPasscode(e.target.value); setExtractionStatus('idle'); }}
                           disabled={extractionStatus === 'cracking'}
-                          className={`w-full bg-black border border-gray-800 text-${currentNeonColor}-400 font-mono p-4 rounded-lg focus:outline-none focus:border-${currentNeonColor}-500 transition disabled:opacity-50`}
+                          className={`w-full bg-black border border-gray-800 ${cc.text} font-mono p-4 rounded-lg focus:outline-none ${cc.focusBorder} transition disabled:opacity-50`}
                           placeholder="Deterministic Seed Key..."
                         />
                       </div>
@@ -301,7 +339,7 @@ export default function Home() {
                           value={extractFrameCount}
                           onChange={(e) => { setExtractFrameCount(e.target.value); setExtractionStatus('idle'); }}
                           disabled={extractionStatus === 'cracking'}
-                          className={`w-full bg-black border border-gray-800 text-${currentNeonColor}-400 font-mono p-4 rounded-lg focus:outline-none focus:border-${currentNeonColor}-500 transition disabled:opacity-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
+                          className={`w-full bg-black border border-gray-800 ${cc.text} font-mono p-4 rounded-lg focus:outline-none ${cc.focusBorder} transition disabled:opacity-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
                           placeholder="e.g. 1337"
                         />
                       </div>
@@ -331,36 +369,36 @@ export default function Home() {
                 )}
 
                 {extractionStatus === 'success' && (
-                   <div className={`flex flex-col animate-in fade-in zoom-in duration-500 border border-${currentNeonColor}-900/50 bg-${currentNeonColor}-950/10 rounded-xl p-8 max-w-2xl mx-auto w-full relative overflow-hidden shadow-[0_0_30px_rgba(var(--tw-colors-${currentNeonColor}-500),0.05)]`}>
-                      <div className={`absolute top-0 left-0 w-1 h-full bg-${currentNeonColor}-500 shadow-[0_0_15px_rgba(var(--tw-colors-${currentNeonColor}-500),1)]`}></div>
+                   <div className={`flex flex-col animate-in fade-in zoom-in duration-500 border ${cc.borderMuted} ${cc.bgPanel} rounded-xl p-8 max-w-2xl mx-auto w-full relative overflow-hidden`}>
+                       <div className={`absolute top-0 left-0 w-1 h-full ${cc.sideBar}`}></div>
                       
                       <div className="flex flex-col sm:flex-row sm:items-center gap-5 border-b border-gray-800 pb-5 mb-6">
-                         <div className={`bg-${currentNeonColor}-500/20 p-4 rounded-full border border-${currentNeonColor}-500/50 text-${currentNeonColor}-400 inline-flex self-start`}>
+                         <div className={`${cc.bgAccent} p-4 rounded-full border ${cc.borderAccent} ${cc.text} inline-flex self-start`}>
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
                          </div>
                          <div>
-                            <h4 className={`text-2xl font-bold text-${currentNeonColor}-400 uppercase tracking-widest`} style={{ fontFamily: 'var(--font-rajdhani)' }}>Seal Intact. Extraction Valid.</h4>
+                            <h4 className={`text-2xl font-bold ${cc.text} uppercase tracking-widest`} style={{ fontFamily: 'var(--font-rajdhani)' }}>Seal Intact. Extraction Valid.</h4>
                             <p className="text-gray-400 text-sm mt-1">Payload cleanly severed from target matrix.</p>
                          </div>
                       </div>
 
                       <div className={`mb-8 w-full relative group`}>
-                         <div className={`absolute -inset-1 bg-gradient-to-r from-${currentNeonColor}-600 to-${currentNeonColor}-400 rounded-xl blur opacity-25 group-hover:opacity-60 transition duration-1000 group-hover:duration-200`}></div>
+                         <div className={`absolute -inset-1 bg-gradient-to-r ${cc.btnBg === 'bg-green-600' ? 'from-green-600 to-green-400' : 'from-blue-600 to-blue-400'} rounded-xl blur opacity-25 group-hover:opacity-60 transition duration-1000 group-hover:duration-200`}></div>
                          <div className="relative bg-black rounded-lg border border-gray-800 p-6 shadow-inner">
-                             <span className={`text-xs font-bold text-white uppercase tracking-widest px-2 py-1 bg-${currentNeonColor}-900/80 rounded absolute -top-3 left-4 border border-${currentNeonColor}-500/50 shadow-[0_0_15px_rgba(var(--tw-colors-${currentNeonColor}-500),1)]`}>
-                               [ DECLASSIFIED PAYLOAD ]
+                             <span className={`text-xs font-bold text-white uppercase tracking-widest px-2 py-1 ${cc.bgMuted} rounded absolute -top-3 left-4 border ${cc.borderAccent}`}>
+                                [ DECLASSIFIED PAYLOAD ]
                              </span>
                              
                              {extractMode === 'image' ? (
                                  <textarea 
                                    readOnly
                                    value={decryptedPayload || ''}
-                                   className={`w-full min-h-[120px] bg-transparent border-none text-${currentNeonColor}-400 font-mono focus:outline-none resize-none pt-2`}
+                                   className={`w-full min-h-[120px] bg-transparent border-none ${cc.text} font-mono focus:outline-none resize-none pt-2`}
                                  />
                              ) : (
                                  <div className="flex flex-col gap-4 pt-2">
                                     <audio controls src={`data:audio/wav;base64,${decryptedPayload}`} className="w-full" />
-                                    <a href={`data:audio/wav;base64,${decryptedPayload}`} download="Declassified-Audio.wav" className={`text-center text-xs text-${currentNeonColor}-400 hover:text-white uppercase tracking-widest border border-gray-800 bg-gray-950 hover:bg-gray-900 py-2 rounded transition`}>
+                                    <a href={`data:audio/wav;base64,${decryptedPayload}`} download="Declassified-Audio.wav" className={`text-center text-xs ${cc.text} hover:text-white uppercase tracking-widest border border-gray-800 bg-gray-950 hover:bg-gray-900 py-2 rounded transition`}>
                                        Download Raw Auditory Payload
                                     </a>
                                  </div>
@@ -370,7 +408,7 @@ export default function Home() {
 
                       <button 
                         onClick={() => { setExtractionStatus('idle'); setExtractFile(null); setExtractPasscode(''); setExtractFrameCount(''); setDecryptedPayload(null); }}
-                        className={`w-full py-5 bg-${currentNeonColor}-600 hover:bg-${currentNeonColor}-500 text-black font-bold uppercase tracking-widest text-sm sm:text-lg rounded-xl transition duration-300 shadow-[0_0_20px_rgba(var(--tw-colors-${currentNeonColor}-500),0.3)] flex items-center justify-center gap-3`}
+                        className={`w-full py-5 ${cc.btnBg} ${cc.btnHover} text-black font-bold uppercase tracking-widest text-sm sm:text-lg rounded-xl transition duration-300 flex items-center justify-center gap-3`}
                       >
                          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 sm:w-6 sm:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                          Success! Download Extracted Message
