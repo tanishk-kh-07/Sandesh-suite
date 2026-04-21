@@ -17,7 +17,6 @@ export default function Home() {
   const [extractMode, setExtractMode] = useState<'image' | 'audio'>('image');
   const [extractFile, setExtractFile] = useState<File | null>(null);
   const [extractPasscode, setExtractPasscode] = useState('');
-  const [extractFrameCount, setExtractFrameCount] = useState('');
   const [extractionStatus, setExtractionStatus] = useState<'idle' | 'cracking' | 'success'>('idle');
   const [decryptedPayload, setDecryptedPayload] = useState<string | null>(null);
 
@@ -60,7 +59,6 @@ export default function Home() {
      // Wipe all highly sensitive state
      setExtractFile(null);
      setExtractPasscode('');
-     setExtractFrameCount('');
      setExtractionStatus('idle');
      setDecryptedPayload(null);
   };
@@ -76,7 +74,7 @@ export default function Home() {
     }
   };
 
-  const MAX_EXTRACT_SIZE = 10 * 1024 * 1024; // 10MB
+  const MAX_EXTRACT_SIZE = 3.5 * 1024 * 1024; // 3.5MB
 
   const onExtractDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -91,7 +89,7 @@ export default function Home() {
           return;
       }
       if (dropped.size > MAX_EXTRACT_SIZE) {
-          toast.error(`File exceeds 10MB limit (${(dropped.size / 1024 / 1024).toFixed(1)}MB).`);
+          toast.error('File exceeds 3.5MB cloud limit.');
           return;
       }
       setExtractFile(dropped);
@@ -104,8 +102,8 @@ export default function Home() {
         toast.error('Vault Breach Failed: Artifact missing.');
         return;
     }
-    if (!extractPasscode || !extractFrameCount || parseInt(extractFrameCount, 10) < 0) {
-        toast.error('Vault Breach Failed: Invalid Passcode or Frame Count.');
+    if (!extractPasscode) {
+        toast.error('Vault Breach Failed: Invalid Passcode.');
         return;
     }
 
@@ -115,7 +113,6 @@ export default function Home() {
         const formData = new FormData();
         formData.append('file', extractFile);
         formData.append('passcode', extractPasscode);
-        formData.append('frameCount', extractFrameCount);
 
         const endpoint = extractMode === 'image' ? '/api/vault/extract' : '/api/audio/extract';
         const res = await fetch(endpoint, {
@@ -125,6 +122,13 @@ export default function Home() {
 
         const data = await res.json();
         
+        // Handle Plausible Deniability response (200 OK but success is false)
+        if (res.ok && data.success === false) {
+            setExtractionStatus('idle');
+            toast.error(data.message || 'No secure payload detected or invalid passcode.');
+            return;
+        }
+
         if (!res.ok) {
             throw new Error(data.error || 'Extraction failed');
         }
@@ -323,26 +327,7 @@ export default function Home() {
                         />
                       </div>
                       
-                      <div>
-                        <div className="flex items-center gap-2 mb-2">
-                           <label className="block text-sm font-semibold text-gray-400 uppercase tracking-wider">Frame Count (Metadata)</label>
-                           <div className="group relative cursor-help">
-                              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-gray-500 hover:text-white transition" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>
-                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-[280px] p-4 bg-black border border-gray-700 text-gray-300 text-xs rounded shadow-[0_0_30px_rgba(0,0,0,0.8)] opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 leading-relaxed font-sans">
-                                Required for Military Decode logic to pinpoint exact payload termination. Extraction without this precise integer triggers a generic buffer overflow simulation, natively avoiding steganalysis detection points.
-                              </div>
-                           </div>
-                        </div>
-                        <input 
-                          type="number" 
-                          min="0"
-                          value={extractFrameCount}
-                          onChange={(e) => { setExtractFrameCount(e.target.value); setExtractionStatus('idle'); }}
-                          disabled={extractionStatus === 'cracking'}
-                          className={`w-full bg-black border border-gray-800 ${cc.text} font-mono p-4 rounded-lg focus:outline-none ${cc.focusBorder} transition disabled:opacity-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
-                          placeholder="e.g. 1337"
-                        />
-                      </div>
+
                    </div>
                 </div>
              </div>
@@ -353,8 +338,8 @@ export default function Home() {
                 {extractionStatus === 'idle' && (
                    <button 
                      onClick={handleExecuteExtraction}
-                     disabled={!extractFile || !extractPasscode || !extractFrameCount}
-                     className={`w-full md:w-auto md:px-16 py-5 bg-gray-900 hover:bg-gray-800 border border-gray-700 text-white font-bold uppercase tracking-widest rounded-xl transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed mx-auto shadow-xl ${extractFile && extractPasscode && extractFrameCount ? 'hover:border-gray-500' : ''}`}
+                     disabled={!extractFile || !extractPasscode}
+                     className={`w-full md:w-auto md:px-16 py-5 bg-gray-900 hover:bg-gray-800 border border-gray-700 text-white font-bold uppercase tracking-widest rounded-xl transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed mx-auto shadow-xl ${extractFile && extractPasscode ? 'hover:border-gray-500' : ''}`}
                    >
                      Submit to Extraction Engine
                    </button>
@@ -407,7 +392,7 @@ export default function Home() {
                       </div>
 
                       <button 
-                        onClick={() => { setExtractionStatus('idle'); setExtractFile(null); setExtractPasscode(''); setExtractFrameCount(''); setDecryptedPayload(null); }}
+                        onClick={() => { setExtractionStatus('idle'); setExtractFile(null); setExtractPasscode(''); setDecryptedPayload(null); }}
                         className={`w-full py-5 ${cc.btnBg} ${cc.btnHover} text-black font-bold uppercase tracking-widest text-sm sm:text-lg rounded-xl transition duration-300 flex items-center justify-center gap-3`}
                       >
                          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 sm:w-6 sm:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>

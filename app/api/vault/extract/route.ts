@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { PNG } from 'pngjs';
 import { extractBits, decryptPayload } from '@/lib/stego';
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB hard limit
+const MAX_FILE_SIZE = 3.5 * 1024 * 1024; // 3.5MB — safely under Vercel's 4.5MB serverless limit
 
 export async function POST(request: NextRequest) {
     let buffer: Buffer | null = null;
@@ -14,9 +14,8 @@ export async function POST(request: NextRequest) {
         
         const passcode = formData.get('passcode') as string;
         const file = formData.get('file') as File;
-        const frameCountStr = formData.get('frameCount') as string;
         
-        if (!passcode || !file || !frameCountStr) {
+        if (!passcode || !file) {
             return NextResponse.json({ error: 'Missing required extraction protocol parameters' }, { status: 400 });
         }
 
@@ -25,29 +24,38 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: `File exceeds maximum allowed size of ${MAX_FILE_SIZE / 1024 / 1024}MB.` }, { status: 413 });
         }
 
-        const frameCount = parseInt(frameCountStr, 10);
-
         buffer = Buffer.from(await file.arrayBuffer());
         const png = PNG.sync.read(buffer);
 
-        // Standard sequential extraction (step=1, spread=false) for Pixel Vault
-        extractedBuffer = extractBits(new Uint8Array(png.data), 0, false);
-        decryptedBuffer = decryptPayload(extractedBuffer, passcode, frameCount);
-        const secretText = decryptedBuffer.toString('utf8');
+            const secretText = decryptedBuffer.toString('utf8');
 
-        return NextResponse.json({ success: true, payload: secretText }, {
-            headers: {
-                'Cache-Control': 'no-store, no-cache, must-revalidate, private',
-                'Pragma': 'no-cache',
-            }
-        });
+            return NextResponse.json({ success: true, payload: secretText }, {
+                headers: {
+                    'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+                    'Pragma': 'no-cache',
+                }
+            });
+        } catch {
+            // Plausible Deniability: ambiguous response — do not reveal whether
+            // the file has no hidden data or the passcode was simply wrong.
+            return NextResponse.json({ 
+                success: false, 
+                message: 'No secure payload detected or invalid passcode.' 
+            }, {
+                status: 200,
+                headers: {
+                    'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+                    'Pragma': 'no-cache',
+                }
+            });
+        }
 
     } catch (error: any) {
         console.error('API Error:', error);
         return NextResponse.json({ 
-            error: 'Integrity Check Failed / Corrupted File', 
-            details: error.message 
-        }, { status: 400 });
+            success: false, 
+            message: 'No secure payload detected or invalid passcode.' 
+        }, { status: 200 });
     } finally {
         // Zero all sensitive buffers regardless of success/failure
         if (buffer) { buffer.fill(0); buffer = null; }

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { encryptPayload, embedBits } from '@/lib/stego';
 
-const MAX_COVER_SIZE = 10 * 1024 * 1024;  // 10MB for WAV covers (audio files are larger)
-const MAX_SECRET_SIZE = 5 * 1024 * 1024;  // 5MB for secret payload
+const MAX_COVER_SIZE = 3.5 * 1024 * 1024;  // 3.5MB — safely under Vercel's 4.5MB serverless limit
+const MAX_SECRET_SIZE = 3.5 * 1024 * 1024;  // 3.5MB — safely under Vercel's 4.5MB serverless limit
 
 function findDataChunkIndex(buffer: Buffer) {
     // WAV files start with RIFF...WAVE. 'data' chunk contains the raw audio samples.
@@ -25,39 +25,7 @@ export async function POST(request: NextRequest) {
         
         const passcode = formData.get('passcode') as string;
         const file = formData.get('coverFile') as File;
-        const frameCountStr = formData.get('frameCount') as string;
-        const secretFile = formData.get('secretFile') as File;
 
-        if (!passcode || !file || !frameCountStr || !secretFile) {
-            return NextResponse.json({ error: 'Missing required audio matrix parameters' }, { status: 400 });
-        }
-
-        // Server-side file size enforcement
-        if (file.size > MAX_COVER_SIZE) {
-            return NextResponse.json({ error: `Cover file exceeds ${MAX_COVER_SIZE / 1024 / 1024}MB limit.` }, { status: 413 });
-        }
-        if (secretFile.size > MAX_SECRET_SIZE) {
-            return NextResponse.json({ error: `Secret file exceeds ${MAX_SECRET_SIZE / 1024 / 1024}MB limit.` }, { status: 413 });
-        }
-
-        const frameCount = parseInt(frameCountStr, 10);
-        if (frameCount < 0) {
-            return NextResponse.json({ error: 'System Exception: Frame variance index out of acceptable bounds.' }, { status: 400 });
-        }
-
-        // Buffer the cover and payload
-        audioBuffer = Buffer.from(await file.arrayBuffer());
-        secretBuffer = Buffer.from(await secretFile.arrayBuffer());
-        
-        // Use base64 encoding to easily represent the binary file in the UI later
-        const secretBase64 = secretBuffer.toString('base64');
-        payloadBuffer = encryptPayload(secretBase64, passcode, frameCount);
-
-        const dataOffset = findDataChunkIndex(audioBuffer);
-        
-        // Embed Bits into WAV audio Buffer
-        // We inject the LSB directly in the audio sample byte stream, bypassing format logic safely.
-        modifiedWav = Buffer.from(embedBits(new Uint8Array(audioBuffer), payloadBuffer, dataOffset, false));
 
         return new NextResponse(new Uint8Array(modifiedWav), {
             status: 200,

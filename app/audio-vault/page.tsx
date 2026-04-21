@@ -19,7 +19,6 @@ export default function AudioVault() {
   
   const [isSpreadSpectrum, setIsSpreadSpectrum] = useState(true);
   const [passcode, setPasscode] = useState('');
-  const [frameCount, setFrameCount] = useState('');
   
   const toast = useToast();
   
@@ -38,7 +37,6 @@ export default function AudioVault() {
     setSecretUrl(null);
     setEncodedUrl(null);
     setPasscode('');
-    setFrameCount('');
     setShowResult(false);
     setSecurityStatus('idle');
   };
@@ -52,8 +50,8 @@ export default function AudioVault() {
     };
   }, [coverUrl, secretUrl, encodedUrl]);
 
-  const MAX_COVER_SIZE = 10 * 1024 * 1024; // 10MB
-  const MAX_SECRET_SIZE = 5 * 1024 * 1024;  // 5MB
+  const MAX_COVER_SIZE = 3.5 * 1024 * 1024; // 3.5MB
+  const MAX_SECRET_SIZE = 3.5 * 1024 * 1024;  // 3.5MB
 
   const handleFileDrop = (target: 'cover' | 'secret', selectedFile: File) => {
     if (!selectedFile.type.match('audio/wav') && !selectedFile.name.endsWith('.wav')) {
@@ -62,9 +60,8 @@ export default function AudioVault() {
     }
     
     const sizeLimit = target === 'cover' ? MAX_COVER_SIZE : MAX_SECRET_SIZE;
-    const limitLabel = target === 'cover' ? '10MB' : '5MB';
     if (selectedFile.size > sizeLimit) {
-      toast.error(`${target === 'cover' ? 'Carrier' : 'Payload'} exceeds ${limitLabel} limit (${(selectedFile.size / 1024 / 1024).toFixed(1)}MB).`);
+      toast.error('File exceeds 3.5MB cloud limit.');
       return;
     }
     
@@ -105,20 +102,13 @@ export default function AudioVault() {
 
   const onExecute = async () => {
     if (!coverFile || !secretFile) return;
-    if (!passcode || !frameCount || parseInt(frameCount, 10) < 0) {
-      toast.error('Integrity Check Failed: Valid Passcode and Frame Count (>= 0) required.');
+    if (!passcode) {
+      toast.error('Integrity Check Failed: Valid Passcode required.');
       return;
     }
     setIsProcessing(true);
 
     try {
-        const formData = new FormData();
-        formData.append('coverFile', coverFile);
-        formData.append('passcode', passcode);
-        formData.append('frameCount', frameCount);
-        formData.append('secretFile', secretFile);
-
-        const res = await fetch('/api/audio/process', {
             method: 'POST',
             body: formData,
         });
@@ -273,18 +263,7 @@ export default function AudioVault() {
                         />
                       </div>
 
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Frame Count (Meta)</label>
-                        <input 
-                          type="number" 
-                          min="0"
-                          value={frameCount}
-                          onChange={(e) => setFrameCount(e.target.value)}
-                          disabled={isProcessing}
-                          className="w-full bg-black border border-gray-800 text-blue-400 font-mono p-4 rounded-xl focus:outline-none focus:border-blue-500 transition disabled:opacity-50 shadow-inner placeholder-gray-700 selection:bg-blue-900 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                          placeholder="e.g. 1337"
-                        />
-                      </div>
+
                       
                       <div className="bg-gray-950 p-5 rounded-xl border border-gray-800 flex flex-col gap-5 mt-2">
                         <div className="flex items-center justify-between gap-4">
@@ -333,7 +312,7 @@ export default function AudioVault() {
               <div className="mt-4 pt-6 border-t border-gray-900 flex flex-col md:flex-row items-center justify-between gap-6">
                  <button 
                    onClick={onExecute}
-                   disabled={!coverFile || !secretFile || !passcode || !frameCount || parseInt(frameCount,10)<0 || securityStatus !== 'ok'}
+                   disabled={!coverFile || !secretFile || !passcode || securityStatus !== 'ok'}
                    className="w-full md:w-auto md:px-12 py-5 bg-blue-600 hover:bg-blue-500 text-black font-bold uppercase tracking-widest rounded-xl transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 relative overflow-hidden group ml-auto"
                  >
                    <span className="relative z-10">Execute Encapsulation</span>

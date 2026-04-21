@@ -18,7 +18,6 @@ export default function PixelVault() {
   
   const [secretText, setSecretText] = useState('');
   const [passcode, setPasscode] = useState('');
-  const [frameCount, setFrameCount] = useState('');
   const [isLsbMatching, setIsLsbMatching] = useState(true);
   
   const toast = useToast();
@@ -38,7 +37,6 @@ export default function PixelVault() {
     setCapacity(0);
     setSecretText('');
     setPasscode('');
-    setFrameCount('');
     setShowResult(false);
     setSecurityStatus('idle');
   };
@@ -60,7 +58,7 @@ export default function PixelVault() {
     };
   }, [previewUrl, encodedUrl]);
 
-  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+  const MAX_FILE_SIZE = 3.5 * 1024 * 1024; // 3.5MB
 
   const handleFile = (selectedFile: File) => {
     if (!selectedFile.type.match('image/(png|bmp)')) {
@@ -68,7 +66,7 @@ export default function PixelVault() {
       return;
     }
     if (selectedFile.size > MAX_FILE_SIZE) {
-      toast.error(`Carrier exceeds 5MB limit (${(selectedFile.size / 1024 / 1024).toFixed(1)}MB). Resize or use a lower resolution image.`);
+      toast.error('File exceeds 3.5MB cloud limit.');
       return;
     }
     setFile(selectedFile);
@@ -114,8 +112,8 @@ export default function PixelVault() {
 
   const onExecute = async () => {
     if (!file || payloadSize > capacity) return;
-    if (!secretText || !passcode || !frameCount || parseInt(frameCount, 10) < 0) {
-      toast.error('Integrity Check Failed: Valid Passcode and Frame Count (>= 0) required.');
+    if (!secretText || !passcode) {
+      toast.error('Integrity Check Failed: Valid Passcode required.');
       return;
     }
     setIsProcessing(true);
@@ -124,7 +122,6 @@ export default function PixelVault() {
         const formData = new FormData();
         formData.append('file', file);
         formData.append('passcode', passcode);
-        formData.append('frameCount', frameCount);
         formData.append('secretText', secretText);
         formData.append('isLsbMatching', String(isLsbMatching));
 
@@ -296,18 +293,6 @@ export default function PixelVault() {
                         placeholder="AES-256 Key"
                       />
                     </div>
-                    <div className="flex-1">
-                      <label className="block text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Frame Count (Meta)</label>
-                      <input 
-                        type="number" 
-                        min="0"
-                        value={frameCount}
-                        onChange={(e) => setFrameCount(e.target.value)}
-                        disabled={isProcessing}
-                        className="w-full bg-black border border-gray-800 text-green-400 font-mono p-3 rounded-lg focus:outline-none focus:border-green-500 transition disabled:opacity-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        placeholder="e.g. 1337"
-                      />
-                    </div>
                   </div>
                   
                   <div className="bg-gray-950 p-5 rounded-xl border border-gray-800 flex items-center justify-between gap-4 mt-2">
@@ -344,7 +329,7 @@ export default function PixelVault() {
                
                <button 
                  onClick={onExecute}
-                 disabled={!file || !secretText || !passcode || !frameCount || payloadSize > capacity || isProcessing || securityStatus !== 'ok'}
+                 disabled={!file || !secretText || !passcode || payloadSize > capacity || isProcessing || securityStatus !== 'ok'}
                  className="w-full md:w-auto md:px-12 py-5 bg-green-600 hover:bg-green-500 text-black font-bold uppercase tracking-widest rounded-xl transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 relative overflow-hidden group"
                >
                  {isProcessing ? (
