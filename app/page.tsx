@@ -136,9 +136,10 @@ export default function Home() {
         setDecryptedPayload(data.payload);
         setExtractionStatus('success');
         toast.success('Matrix Cracked Successfully.');
-    } catch (err: any) {
-        setExtractionStatus('idle'); 
-        toast.error(err.message || 'Integrity Check Failed / Corrupted File');
+    } catch (err: unknown) {
+        setExtractionStatus('idle');
+        const msg = err instanceof Error ? err.message : 'Integrity Check Failed / Corrupted File';
+        toast.error(msg);
     }
   };
 

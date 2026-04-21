@@ -1,29 +1,28 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import AutoDestructTracker from '../components/AutoDestructTracker';
 import { useToast } from '../components/Toast';
 import TerminalOverlay from '../components/TerminalOverlay';
 
+const MAX_COVER_SIZE = 3.5 * 1024 * 1024; // 3.5MB — safely under Vercel's 4.5MB serverless limit
+
 export default function AudioVault() {
-  const router = useRouter();
-  
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [secretFile, setSecretFile] = useState<File | null>(null);
-  
+
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
   const [secretUrl, setSecretUrl] = useState<string | null>(null);
   const [encodedUrl, setEncodedUrl] = useState<string | null>(null);
-  
+
   const [isSpreadSpectrum, setIsSpreadSpectrum] = useState(true);
   const [passcode, setPasscode] = useState('');
-  
+
   const toast = useToast();
-  
+
   const [activeDropzone, setActiveDropzone] = useState<'cover' | 'secret' | null>(null);
-  
+
   const [isProcessing, setIsProcessing] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [securityStatus, setSecurityStatus] = useState<'idle' | 'checking' | 'ok'>('idle');
@@ -31,6 +30,7 @@ export default function AudioVault() {
   const handleDestruct = () => {
     if (coverUrl) URL.revokeObjectURL(coverUrl);
     if (secretUrl) URL.revokeObjectURL(secretUrl);
+    if (encodedUrl) URL.revokeObjectURL(encodedUrl);
     setCoverFile(null);
     setSecretFile(null);
     setCoverUrl(null);
@@ -50,35 +50,44 @@ export default function AudioVault() {
     };
   }, [coverUrl, secretUrl, encodedUrl]);
 
-  const MAX_COVER_SIZE = 3.5 * 1024 * 1024; // 3.5MB
-  const MAX_SECRET_SIZE = 3.5 * 1024 * 1024;  // 3.5MB
-
+  /**
+   * Validates and sets a dropped/selected WAV file for the given dropzone target.
+   * Enforces:
+   *  - .wav format
+   *  - 3.5MB max for the cover file
+   *  - 30x cover-to-secret ratio (checked when both files are present)
+   */
   const handleFileDrop = (target: 'cover' | 'secret', selectedFile: File) => {
     if (!selectedFile.type.match('audio/wav') && !selectedFile.name.endsWith('.wav')) {
       toast.error('Integrity Check Failed: Only .wav files are supported.');
       return;
     }
-    
-    const sizeLimit = target === 'cover' ? MAX_COVER_SIZE : MAX_SECRET_SIZE;
-    if (selectedFile.size > sizeLimit) {
-      toast.error('File exceeds 3.5MB cloud limit.');
-      return;
-    }
-    
-    const url = URL.createObjectURL(selectedFile);
-    
+
     if (target === 'cover') {
+      // 3.5MB cover file limit
+      if (selectedFile.size > MAX_COVER_SIZE) {
+        toast.error('Cover file exceeds 3.5MB cloud limit. Choose a smaller carrier.');
+        return;
+      }
+      // 30x ratio check — validate against existing secret file if already loaded
+      if (secretFile && selectedFile.size < secretFile.size * 30) {
+        toast.error('Cover file must be at least 30x larger than the secret file for optimal steganography.');
+        return;
+      }
       if (coverUrl) URL.revokeObjectURL(coverUrl);
       setCoverFile(selectedFile);
-      setCoverUrl(url);
-      
-      // Simulate Entropy check only on carrier
+      setCoverUrl(URL.createObjectURL(selectedFile));
       setSecurityStatus('checking');
       setTimeout(() => setSecurityStatus('ok'), 1000);
     } else {
+      // 30x ratio check — validate against existing cover file if already loaded
+      if (coverFile && coverFile.size < selectedFile.size * 30) {
+        toast.error('Cover file must be at least 30x larger than the secret file for optimal steganography.');
+        return;
+      }
       if (secretUrl) URL.revokeObjectURL(secretUrl);
       setSecretFile(selectedFile);
-      setSecretUrl(url);
+      setSecretUrl(URL.createObjectURL(selectedFile));
     }
   };
 
@@ -95,39 +104,56 @@ export default function AudioVault() {
   const onDrop = (e: React.DragEvent, zone: 'cover' | 'secret') => {
     e.preventDefault();
     setActiveDropzone(null);
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      handleFileDrop(zone, e.dataTransfer.files[0]);
-    }
+    const dropped = e.dataTransfer.files[0];
+    if (dropped) handleFileDrop(zone, dropped);
   };
 
   const onExecute = async () => {
-    if (!coverFile || !secretFile) return;
+    if (!coverFile || !secretFile) {
+      toast.error('Integrity Check Failed: Both cover and secret files are required.');
+      return;
+    }
     if (!passcode) {
       toast.error('Integrity Check Failed: Valid Passcode required.');
       return;
     }
+    // Final ratio guard before submission
+    if (coverFile.size < secretFile.size * 30) {
+      toast.error('Cover file must be at least 30x larger than the secret file for optimal steganography.');
+      return;
+    }
+
     setIsProcessing(true);
 
     try {
-            method: 'POST',
-            body: formData,
-        });
+      const formData = new FormData();
+      formData.append('coverFile', coverFile);
+      formData.append('secretFile', secretFile);
+      formData.append('passcode', passcode);
+      formData.append('isSpreadSpectrum', String(isSpreadSpectrum));
 
-        if (!res.ok) {
-            const err = await res.json();
-            throw new Error(err.error || 'Network response was not ok');
-        }
+      const res = await fetch('/api/audio/process', {
+        method: 'POST',
+        body: formData,
+      });
 
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        setEncodedUrl(url);
-        
-        setIsProcessing(false);
-        setShowResult(true);
-        toast.success('Auditory Vault Sealed Successfully.');
-    } catch (err: any) {
-        setIsProcessing(false);
-        toast.error(err.message || 'Fatal Execution Error. Backend failed to respond.');
+      if (!res.ok) {
+        const err = await res.json() as { error?: string };
+        throw new Error(err.error ?? 'Network response was not ok');
+      }
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      if (encodedUrl) URL.revokeObjectURL(encodedUrl);
+      setEncodedUrl(url);
+
+      setIsProcessing(false);
+      setShowResult(true);
+      toast.success('Auditory Vault Sealed Successfully.');
+    } catch (err: unknown) {
+      setIsProcessing(false);
+      const msg = err instanceof Error ? err.message : 'Fatal Execution Error. Backend failed to respond.';
+      toast.error(msg);
     }
   };
 
@@ -137,7 +163,7 @@ export default function AudioVault() {
       {/* Header */}
       <header className="border-b border-gray-800 bg-gray-950 px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-[0_4px_30px_rgba(0,0,0,0.5)]">
         <div className="flex items-center gap-4">
-          <Link href="/" className="text-gray-400 hover:text-white transition flex items-center gap-2 border border-blue-900 p-2 rounded-lg bg-black hover:bg-gray-800 transition shadow-[0_0_10px_rgba(59,130,246,0.2)]">
+          <Link href="/" className="text-gray-400 hover:text-white transition flex items-center gap-2 border border-blue-900 p-2 rounded-lg bg-black hover:bg-gray-800 shadow-[0_0_10px_rgba(59,130,246,0.2)]">
             <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
           </Link>
           <div className="w-8 h-8 bg-blue-500 rounded-sm flex items-center justify-center font-bold text-black border border-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.5)]">AV</div>
@@ -147,7 +173,7 @@ export default function AudioVault() {
                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-gray-500 hover:text-blue-400 transition" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
                <div className="absolute right-0 top-full mt-2 w-64 p-3 bg-gray-900 border border-gray-700 text-gray-300 text-xs rounded shadow-2xl opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 font-sans normal-case tracking-normal">
                  <strong className="text-white block mb-1">Acoustic Carrier Drop</strong>
-                 Provides high redundancy and is perfect for evading optical scanner firewalls while passing cleanly through audio-listening gateways. 
+                 Provides high redundancy and is perfect for evading optical scanner firewalls while passing cleanly through audio-listening gateways.
                </div>
             </div>
           </h1>
@@ -163,25 +189,25 @@ export default function AudioVault() {
                     <h2 className="text-2xl font-bold text-white uppercase tracking-wider border-b border-gray-800 pb-2" style={{ fontFamily: 'var(--font-rajdhani)' }}>
                       Carrier & Payload Initialization
                     </h2>
-                    
+
                     {/* Cover Music Dropzone */}
-                    <div 
+                    <div
                       onDragOver={(e) => onDragOver(e, 'cover')}
                       onDragLeave={onDragLeave}
                       onDrop={(e) => onDrop(e, 'cover')}
                       className={`relative w-full h-40 border-2 border-dashed rounded-xl flex flex-col items-center justify-center transition-all bg-gray-950 upload-zone ${activeDropzone === 'cover' ? 'border-blue-500 bg-blue-500/10' : 'border-gray-700 hover:border-gray-500 hover:bg-gray-900'} ${coverFile ? 'border-blue-500/50' : ''}`}
                     >
-                      <input 
-                        type="file" 
-                        accept=".wav" 
-                        onChange={(e) => e.target.files && handleFileDrop('cover', e.target.files[0])}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                      <input
+                        type="file"
+                        accept=".wav"
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileDrop('cover', f); }}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                       />
                       {!coverFile ? (
                         <div className="text-center p-4 flex flex-col items-center pointer-events-none">
                            <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 text-blue-500/60 mb-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
                            <p className="text-gray-300 font-semibold mb-1">Upload Cover Music Carrier</p>
-                           <p className="text-gray-500 text-xs">Supports pure .WAV</p>
+                           <p className="text-gray-500 text-xs">Supports pure .WAV · Max 3.5MB · Must be 30× larger than secret</p>
                         </div>
                       ) : (
                         <div className="text-center p-4 flex flex-col items-center pointer-events-none text-blue-400">
@@ -193,23 +219,23 @@ export default function AudioVault() {
                     </div>
 
                     {/* Secret Audio Dropzone */}
-                    <div 
+                    <div
                       onDragOver={(e) => onDragOver(e, 'secret')}
                       onDragLeave={onDragLeave}
                       onDrop={(e) => onDrop(e, 'secret')}
                       className={`relative w-full h-40 border-2 border-dashed rounded-xl flex flex-col items-center justify-center transition-all bg-gray-950 upload-zone ${activeDropzone === 'secret' ? 'border-red-500 bg-red-500/10' : 'border-gray-700 hover:border-gray-500 hover:bg-gray-900'} ${secretFile ? 'border-red-500/50' : ''}`}
                     >
-                      <input 
-                        type="file" 
-                        accept=".wav" 
-                        onChange={(e) => e.target.files && handleFileDrop('secret', e.target.files[0])}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                      <input
+                        type="file"
+                        accept=".wav"
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileDrop('secret', f); }}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                       />
                       {!secretFile ? (
                         <div className="text-center p-4 flex flex-col items-center pointer-events-none">
                            <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 text-red-500/60 mb-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
                            <p className="text-red-300 font-semibold mb-1">Upload Secret Audio Payload</p>
-                           <p className="text-gray-500 text-xs">Supports pure .WAV</p>
+                           <p className="text-gray-500 text-xs">Supports pure .WAV · Must be 30× smaller than cover</p>
                         </div>
                       ) : (
                         <div className="text-center p-4 flex flex-col items-center pointer-events-none text-red-400">
@@ -219,26 +245,34 @@ export default function AudioVault() {
                         </div>
                       )}
                     </div>
-                    
+
                     {/* Format & Security Helper */}
                     <div className="flex flex-col gap-2 relative">
                         <p className="text-[10px] uppercase font-bold text-gray-500 tracking-widest flex items-center gap-1">
                           <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3 text-red-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
                           Format Standardization Enforced to Evade Sniffers (.wav solely)
                         </p>
-                        
+
                         {coverFile && securityStatus === 'checking' && (
                            <div className="bg-black border border-gray-800 rounded p-2 text-xs font-mono text-gray-500 flex items-center gap-2 mt-1">
                               <div className="w-2 h-2 bg-yellow-500 animate-pulse rounded-full"></div>
                               Scanning acoustic signatures...
                            </div>
                         )}
-                        
+
                         {coverFile && securityStatus === 'ok' && (
                            <div className="bg-green-900/10 border border-green-900/50 rounded p-2 text-xs font-mono text-green-500 flex items-center gap-2 mt-1">
                               <div className="w-2 h-2 bg-green-500 rounded-full shadow-[0_0_5px_rgba(0,255,65,0.8)]"></div>
                               Statistical Entropy: Optimal - No Forensic Scars Detected
                            </div>
+                        )}
+
+                        {/* 30x Ratio Live Indicator */}
+                        {coverFile && secretFile && (
+                          <div className={`rounded p-2 text-xs font-mono flex items-center gap-2 mt-1 border ${coverFile.size >= secretFile.size * 30 ? 'bg-green-900/10 border-green-900/50 text-green-500' : 'bg-red-900/10 border-red-900/50 text-red-400'}`}>
+                            <div className={`w-2 h-2 rounded-full ${coverFile.size >= secretFile.size * 30 ? 'bg-green-500' : 'bg-red-500 animate-pulse'}`}></div>
+                            Ratio: {(coverFile.size / secretFile.size).toFixed(1)}× {coverFile.size >= secretFile.size * 30 ? '— Cover/Secret ratio OK' : '— Minimum 30× required'}
+                          </div>
                         )}
                     </div>
 
@@ -253,8 +287,8 @@ export default function AudioVault() {
                     <div className="flex flex-col gap-4">
                       <div>
                         <label className="block text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Deterministic Encryption Seed</label>
-                        <input 
-                          type="password" 
+                        <input
+                          type="password"
                           value={passcode}
                           onChange={(e) => setPasscode(e.target.value)}
                           disabled={isProcessing}
@@ -263,8 +297,6 @@ export default function AudioVault() {
                         />
                       </div>
 
-
-                      
                       <div className="bg-gray-950 p-5 rounded-xl border border-gray-800 flex flex-col gap-5 mt-2">
                         <div className="flex items-center justify-between gap-4">
                           <div className="flex flex-col gap-1">
@@ -280,7 +312,7 @@ export default function AudioVault() {
                             <p className="text-xs text-gray-500">Defeat acoustic waveform forensics</p>
                           </div>
 
-                          <button 
+                          <button
                             onClick={() => setIsSpreadSpectrum(!isSpreadSpectrum)}
                             disabled={isProcessing}
                             className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none disabled:opacity-50 ${isSpreadSpectrum ? 'bg-blue-500' : 'bg-gray-700'}`}
@@ -289,18 +321,18 @@ export default function AudioVault() {
                           </button>
                         </div>
 
-                        {/* Spread Spectrum Visualization Placeholder */}
+                        {/* Spread Spectrum Visualization */}
                         <div className="w-full h-16 bg-black border border-gray-800 rounded-lg overflow-hidden relative flex items-center justify-evenly py-2 px-1">
                            {[...Array(40)].map((_, i) => {
                              const isJump = isSpreadSpectrum && Math.random() > 0.6;
                              const height = 20 + Math.random() * 80;
                              return (
-                               <div 
-                                 key={i} 
-                                 className={`w-[2px] transition-all duration-300 ${isJump ? 'bg-blue-500 shadow-[0_0_5px_rgba(59,130,246,0.8)]' : 'bg-gray-800'}`} 
+                               <div
+                                 key={i}
+                                 className={`w-[2px] transition-all duration-300 ${isJump ? 'bg-blue-500 shadow-[0_0_5px_rgba(59,130,246,0.8)]' : 'bg-gray-800'}`}
                                  style={{ height: `${height}%` }}
                                ></div>
-                             )
+                             );
                            })}
                         </div>
                       </div>
@@ -310,9 +342,9 @@ export default function AudioVault() {
 
             {!isProcessing ? (
               <div className="mt-4 pt-6 border-t border-gray-900 flex flex-col md:flex-row items-center justify-between gap-6">
-                 <button 
+                 <button
                    onClick={onExecute}
-                   disabled={!coverFile || !secretFile || !passcode || securityStatus !== 'ok'}
+                   disabled={!coverFile || !secretFile || !passcode || securityStatus !== 'ok' || (!!coverFile && !!secretFile && coverFile.size < secretFile.size * 30)}
                    className="w-full md:w-auto md:px-12 py-5 bg-blue-600 hover:bg-blue-500 text-black font-bold uppercase tracking-widest rounded-xl transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 relative overflow-hidden group ml-auto"
                  >
                    <span className="relative z-10">Execute Encapsulation</span>
@@ -329,7 +361,7 @@ export default function AudioVault() {
           <div className="flex flex-col animate-in fade-in zoom-in-95 duration-500 relative z-10">
             <div className="bg-gray-950 border border-gray-800 rounded-xl p-8 shadow-2xl relative overflow-hidden">
                <div className="absolute top-0 left-0 w-full h-1 bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)]"></div>
-               
+
                <div className="flex items-center justify-between border-b border-gray-800 pb-6 mb-8">
                   <div className="flex items-center gap-4 text-white">
                      <div className="p-3 bg-blue-500/20 rounded-lg border border-blue-500/50">
@@ -340,7 +372,7 @@ export default function AudioVault() {
                         <p className="text-gray-400 text-sm">Target vector synchronized using {isSpreadSpectrum ? 'Spread-Spectrum Jumping' : 'Linear Scattering'}.</p>
                      </div>
                   </div>
-                  <button onClick={() => {setShowResult(false); setIsProcessing(false);}} className="px-6 py-3 bg-gray-900 hover:bg-gray-800 border border-gray-700 rounded-lg text-sm font-bold uppercase tracking-widest text-white transition">
+                  <button onClick={() => { setShowResult(false); setIsProcessing(false); }} className="px-6 py-3 bg-gray-900 hover:bg-gray-800 border border-gray-700 rounded-lg text-sm font-bold uppercase tracking-widest text-white transition">
                     New Operation
                   </button>
                </div>
@@ -360,10 +392,9 @@ export default function AudioVault() {
                     <div className="flex flex-col gap-4">
                        <div className="flex justify-between items-center bg-gray-900 border border-gray-800 px-4 py-3 rounded-lg">
                           <span className="font-bold text-gray-300 uppercase text-xs tracking-wider">Normal Audio <br/><span className="text-[10px] text-gray-500 font-normal">Original Carrier</span></span>
-                          {coverUrl && <audio controls src={coverUrl} className="h-10 w-48 " />}
+                          {coverUrl && <audio controls src={coverUrl} className="h-10 w-48" />}
                        </div>
                        <div className="w-full flex justify-center py-6 border border-gray-800 rounded-lg bg-black box-border px-4">
-                           {/* Sound wave visual mockup */}
                            <div className="flex items-center gap-1 opacity-50">
                              {[12,24,35,14,48,22,10,30,42,15,8,25].map((h,i) => (
                                <div key={i} className="w-2 bg-gray-500 rounded-full" style={{height: `${h}px`}}></div>
@@ -378,7 +409,6 @@ export default function AudioVault() {
                           {encodedUrl && <audio controls src={encodedUrl} className="h-10 w-48" />}
                        </div>
                        <div className="w-full flex justify-center py-6 border border-blue-900/40 rounded-lg bg-black box-border px-4 shadow-[0_0_20px_rgba(59,130,246,0.05)]">
-                           {/* Sound wave visual mockup */}
                            <div className="flex items-center gap-1 opacity-80">
                              {[12,24,35,14,48,22,10,30,42,15,8,25].map((h,i) => (
                                <div key={i} className="w-2 bg-blue-500 rounded-full" style={{height: `${h}px`}}></div>
@@ -387,7 +417,7 @@ export default function AudioVault() {
                        </div>
                     </div>
                  </div>
-                 
+
                  <div className="mt-4 p-4 bg-purple-950/20 border border-purple-900/40 rounded-lg flex gap-4">
                     <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-purple-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
                     <div className="flex-grow">
@@ -395,8 +425,8 @@ export default function AudioVault() {
                         Auditory verification complete. Sonic Transparency confirmed. The human ear and standard digital signal processing cannot differentiate the Encrypted Audio from the Normal Audio. The payload is securely woven.
                       </p>
                       {encodedUrl && (
-                        <a 
-                           href={encodedUrl} 
+                        <a
+                           href={encodedUrl}
                            download="Audio-Vault-Stego.wav"
                            className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-black font-bold uppercase tracking-widest text-sm rounded-lg transition shadow-[0_0_15px_rgba(59,130,246,0.4)]"
                         >

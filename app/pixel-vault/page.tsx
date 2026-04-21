@@ -1,27 +1,26 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AutoDestructTracker from '../components/AutoDestructTracker';
 import { useToast } from '../components/Toast';
 import TerminalOverlay from '../components/TerminalOverlay';
 
+const MAX_FILE_SIZE = 3.5 * 1024 * 1024; // 3.5MB — safely under Vercel's 4.5MB serverless limit
+
 export default function PixelVault() {
-  const router = useRouter();
-  
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [encodedUrl, setEncodedUrl] = useState<string | null>(null);
   const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
   const [capacity, setCapacity] = useState<number>(0); // in bytes
-  
+
   const [secretText, setSecretText] = useState('');
   const [passcode, setPasscode] = useState('');
   const [isLsbMatching, setIsLsbMatching] = useState(true);
-  
+
   const toast = useToast();
-  
+
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showResult, setShowResult] = useState(false);
@@ -44,7 +43,7 @@ export default function PixelVault() {
   // Determine current payload size
   const payloadSize = new Blob([secretText]).size;
   const usagePercentage = capacity > 0 ? Math.min((payloadSize / capacity) * 100, 100) : 0;
-  
+
   // Progress Bar Color Logic
   let progressColor = 'bg-green-500';
   if (usagePercentage > 75) progressColor = 'bg-yellow-500';
@@ -52,13 +51,10 @@ export default function PixelVault() {
 
   useEffect(() => {
     return () => {
-      // Cleanup object URL
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       if (encodedUrl) URL.revokeObjectURL(encodedUrl);
     };
   }, [previewUrl, encodedUrl]);
-
-  const MAX_FILE_SIZE = 3.5 * 1024 * 1024; // 3.5MB
 
   const handleFile = (selectedFile: File) => {
     if (!selectedFile.type.match('image/(png|bmp)')) {
@@ -66,26 +62,23 @@ export default function PixelVault() {
       return;
     }
     if (selectedFile.size > MAX_FILE_SIZE) {
-      toast.error('File exceeds 3.5MB cloud limit.');
+      toast.error('Cover file exceeds 3.5MB cloud limit. Choose a smaller carrier.');
       return;
     }
     setFile(selectedFile);
-    
-    // Revoke old URL
+
     if (previewUrl) URL.revokeObjectURL(previewUrl);
-    
+
     const url = URL.createObjectURL(selectedFile);
     setPreviewUrl(url);
 
-    // Get exact dimensions securely client-side
     const img = new Image();
     img.onload = () => {
       setDimensions({ width: img.width, height: img.height });
-      // LSB Capacity: 3 channels (RGB) * 1 bit per channel / 8 bits per byte
+      // LSB Capacity: 3 RGB channels × 1 bit per channel / 8 bits per byte
       const bytes = Math.floor((img.width * img.height * 3) / 8);
       setCapacity(bytes);
-      
-      // Simulate Entropy check
+
       setSecurityStatus('checking');
       setTimeout(() => setSecurityStatus('ok'), 1000);
     };
@@ -105,50 +98,52 @@ export default function PixelVault() {
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      handleFile(e.dataTransfer.files[0]);
-    }
+    const dropped = e.dataTransfer.files[0];
+    if (dropped) handleFile(dropped);
   };
 
   const onExecute = async () => {
-    if (!file || payloadSize > capacity) return;
-    if (!secretText || !passcode) {
-      toast.error('Integrity Check Failed: Valid Passcode required.');
+    if (!file || !secretText || !passcode) {
+      toast.error('Integrity Check Failed: All fields are required.');
+      return;
+    }
+    if (payloadSize > capacity) {
+      toast.error('Payload exceeds carrier capacity.');
       return;
     }
     setIsProcessing(true);
-    
+
     try {
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('passcode', passcode);
-        formData.append('secretText', secretText);
-        formData.append('isLsbMatching', String(isLsbMatching));
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('passcode', passcode);
+      formData.append('secretText', secretText);
+      formData.append('isLsbMatching', String(isLsbMatching));
 
-        const res = await fetch('/api/vault/process', {
-            method: 'POST',
-            body: formData,
-        });
+      const res = await fetch('/api/vault/process', {
+        method: 'POST',
+        body: formData,
+      });
 
-        if (!res.ok) {
-            const err = await res.json();
-            throw new Error(err.error || 'Network response was not ok');
-        }
+      if (!res.ok) {
+        const err = await res.json() as { error?: string };
+        throw new Error(err.error ?? 'Network response was not ok');
+      }
 
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        setEncodedUrl(url);
-        
-        setIsProcessing(false);
-        setShowResult(true);
-        toast.success('Matrix Encapsulated Successfully.');
-    } catch (err: any) {
-        setIsProcessing(false);
-        toast.error(err.message || 'Fatal Execution Error. Backend failed to respond.');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      setEncodedUrl(url);
+
+      setIsProcessing(false);
+      setShowResult(true);
+      toast.success('Matrix Encapsulated Successfully.');
+    } catch (err: unknown) {
+      setIsProcessing(false);
+      const msg = err instanceof Error ? err.message : 'Fatal Execution Error. Backend failed to respond.';
+      toast.error(msg);
     }
   };
 
-  // Human readable bytes
   const formatBytes = (bytes: number) => {
     if (bytes === 0) return '0 B';
     const k = 1024;
@@ -184,30 +179,30 @@ export default function PixelVault() {
         {!showResult ? (
           <>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              
+
               {/* Left Column: File Drop & Capacity */}
               <div className="flex flex-col gap-6">
                 <h2 className="text-2xl font-bold text-white uppercase tracking-wider border-b border-gray-800 pb-2" style={{ fontFamily: 'var(--font-rajdhani)' }}>
                   Carrier Selection
                 </h2>
-                
-                <div 
+
+                <div
                   onDragOver={onDragOver}
                   onDragLeave={onDragLeave}
                   onDrop={onDrop}
                   className={`relative w-full h-64 border-2 border-dashed rounded-xl flex flex-col items-center justify-center transition-all bg-gray-950 upload-zone ${isDragging ? 'border-green-500 bg-green-500/10' : 'border-gray-700 hover:border-gray-500 hover:bg-gray-900'} ${file ? 'border-green-500/50' : ''}`}
                 >
-                  <input 
-                    type="file" 
-                    accept=".png, .bmp" 
-                    onChange={(e) => e.target.files && handleFile(e.target.files[0])}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                  <input
+                    type="file"
+                    accept=".png, .bmp"
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   />
                   {!file ? (
                     <div className="text-center p-6 flex flex-col items-center pointer-events-none">
                        <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 text-gray-500 mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
                        <p className="text-gray-300 font-semibold mb-1">Drag & Drop Carrier Image</p>
-                       <p className="text-gray-500 text-sm">Supports pure .PNG and .BMP</p>
+                       <p className="text-gray-500 text-sm">Supports pure .PNG and .BMP · Max 3.5MB</p>
                     </div>
                   ) : (
                     <div className="text-center p-6 flex flex-col items-center pointer-events-none w-full h-full">
@@ -229,14 +224,14 @@ export default function PixelVault() {
                       <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3 text-red-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
                       Format Standardization Enforced to Evade Sniffers (.png, .bmp solely)
                     </p>
-                    
+
                     {file && securityStatus === 'checking' && (
                        <div className="bg-black border border-gray-800 rounded p-2 text-xs font-mono text-gray-500 flex items-center gap-2 mt-1">
                           <div className="w-2 h-2 bg-yellow-500 animate-pulse rounded-full"></div>
                           Scanning matrix signatures...
                        </div>
                     )}
-                    
+
                     {file && securityStatus === 'ok' && (
                        <div className="bg-green-900/10 border border-green-900/50 rounded p-2 text-xs font-mono text-green-500 flex items-center gap-2 mt-1">
                           <div className="w-2 h-2 bg-green-500 rounded-full shadow-[0_0_5px_rgba(0,255,65,0.8)]"></div>
@@ -255,8 +250,8 @@ export default function PixelVault() {
                        </span>
                      </div>
                      <div className="w-full h-2 bg-gray-900 rounded-full overflow-hidden border border-gray-800">
-                       <div 
-                         className={`h-full transition-all duration-300 ${progressColor}`} 
+                       <div
+                         className={`h-full transition-all duration-300 ${progressColor}`}
                          style={{ width: `${usagePercentage}%` }}
                        ></div>
                      </div>
@@ -273,7 +268,7 @@ export default function PixelVault() {
 
                 <div className="flex flex-col h-full gap-4">
                   <label className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Secret Bitstream (Raw Text)</label>
-                  <textarea 
+                  <textarea
                     className="w-full flex-grow min-h-[120px] bg-black border border-gray-800 text-green-400 font-mono p-4 rounded-xl focus:outline-none focus:border-green-500 transition shadow-inner placeholder-gray-700 resize-none selection:bg-green-900 disabled:opacity-50 disabled:cursor-not-allowed"
                     placeholder="Enter classified data payload here..."
                     value={secretText}
@@ -284,8 +279,8 @@ export default function PixelVault() {
                   <div className="flex gap-4 w-full">
                     <div className="flex-1">
                       <label className="block text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Determin. Seed (Passcode)</label>
-                      <input 
-                        type="password" 
+                      <input
+                        type="password"
                         value={passcode}
                         onChange={(e) => setPasscode(e.target.value)}
                         disabled={isProcessing}
@@ -294,7 +289,7 @@ export default function PixelVault() {
                       />
                     </div>
                   </div>
-                  
+
                   <div className="bg-gray-950 p-5 rounded-xl border border-gray-800 flex items-center justify-between gap-4 mt-2">
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center gap-2">
@@ -309,7 +304,7 @@ export default function PixelVault() {
                       <p className="text-xs text-gray-500">Defeat statistical steganalysis</p>
                     </div>
 
-                    <button 
+                    <button
                       onClick={() => setIsLsbMatching(!isLsbMatching)}
                       disabled={isProcessing}
                       className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none disabled:opacity-50 ${isLsbMatching ? 'bg-green-500' : 'bg-gray-700'}`}
@@ -326,8 +321,8 @@ export default function PixelVault() {
                   <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg>
                   Plan B: Suspect Image Sensors?<br/>Pivot to Audio Vault
                </Link>
-               
-               <button 
+
+               <button
                  onClick={onExecute}
                  disabled={!file || !secretText || !passcode || payloadSize > capacity || isProcessing || securityStatus !== 'ok'}
                  className="w-full md:w-auto md:px-12 py-5 bg-green-600 hover:bg-green-500 text-black font-bold uppercase tracking-widest rounded-xl transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 relative overflow-hidden group"
@@ -346,7 +341,7 @@ export default function PixelVault() {
                  )}
                </button>
             </div>
-            
+
             {isProcessing && <TerminalOverlay colorTheme="green" />}
           </>
         ) : (
@@ -354,7 +349,7 @@ export default function PixelVault() {
           <div className="flex flex-col animate-in fade-in zoom-in-95 duration-500 relative z-10">
             <div className="bg-gray-950 border border-gray-800 rounded-xl p-8 shadow-2xl relative overflow-hidden">
                <div className="absolute top-0 left-0 w-full h-1 bg-green-500 shadow-[0_0_10px_rgba(0,255,65,0.8)]"></div>
-               
+
                <div className="flex items-center justify-between border-b border-gray-800 pb-6 mb-8">
                   <div className="flex items-center gap-4 text-white">
                      <div className="p-3 bg-green-500/20 rounded-lg border border-green-500/50">
@@ -405,7 +400,7 @@ export default function PixelVault() {
                        </div>
                     </div>
                  </div>
-                 
+
                  <div className="mt-4 p-4 bg-blue-950/20 border border-blue-900/30 rounded-lg flex gap-4">
                     <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-blue-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
                     <div className="flex-grow">
@@ -413,8 +408,8 @@ export default function PixelVault() {
                         Verification complete. Optical analysis detects zero anomaly signatures. The bitstream variance is constrained to the lowest topological layer. You may confidently export the Stego Artifact.
                       </p>
                       {encodedUrl && (
-                        <a 
-                           href={encodedUrl} 
+                        <a
+                           href={encodedUrl}
                            download="Pixel-Vault-Stego.png"
                            className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-500 text-black font-bold uppercase tracking-widest text-sm rounded-lg transition shadow-[0_0_15px_rgba(0,255,65,0.4)]"
                         >
