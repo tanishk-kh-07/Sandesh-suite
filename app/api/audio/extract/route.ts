@@ -15,16 +15,18 @@ function findDataChunkOffset(buffer: Buffer): number {
     return 44;
 }
 
-const PLAUSIBLE_DENY = NextResponse.json(
-    { success: false, message: 'No secure payload detected or invalid passcode.' },
-    {
-        status: 200,
-        headers: {
-            'Cache-Control': 'no-store, no-cache, must-revalidate, private',
-            'Pragma': 'no-cache',
-        },
-    }
-);
+function getPlausibleDenyResponse() {
+    return NextResponse.json(
+        { success: false, message: 'No secure payload detected or invalid passcode.' },
+        {
+            status: 200,
+            headers: {
+                'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+                'Pragma': 'no-cache',
+            },
+        }
+    );
+}
 
 export async function POST(request: NextRequest) {
     let buffer: Buffer | null = null;
@@ -77,13 +79,13 @@ export async function POST(request: NextRequest) {
 
         } catch {
             // Plausible Deniability: do not reveal if file had no payload or key was wrong
-            return PLAUSIBLE_DENY;
+            return getPlausibleDenyResponse();
         }
 
     } catch (error: unknown) {
         const msg = error instanceof Error ? error.message : 'Unknown error.';
         console.error('Audio Extract API Error:', msg);
-        return PLAUSIBLE_DENY;
+        return getPlausibleDenyResponse();
     } finally {
         // Zero-Persistence: wipe all sensitive buffers
         if (buffer) { buffer.fill(0); buffer = null; }

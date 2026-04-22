@@ -4,16 +4,18 @@ import { extractBits, decryptPayload } from '@/lib/stego';
 
 const MAX_FILE_SIZE = 3.5 * 1024 * 1024; // 3.5MB — safely under Vercel's 4.5MB serverless limit
 
-const PLAUSIBLE_DENY = NextResponse.json(
-    { success: false, message: 'No secure payload detected or invalid passcode.' },
-    {
-        status: 200,
-        headers: {
-            'Cache-Control': 'no-store, no-cache, must-revalidate, private',
-            'Pragma': 'no-cache',
-        },
-    }
-);
+function getPlausibleDenyResponse() {
+    return NextResponse.json(
+        { success: false, message: 'No secure payload detected or invalid passcode.' },
+        {
+            status: 200,
+            headers: {
+                'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+                'Pragma': 'no-cache',
+            },
+        }
+    );
+}
 
 export async function POST(request: NextRequest) {
     let buffer: Buffer | null = null;
@@ -73,14 +75,14 @@ export async function POST(request: NextRequest) {
 
         } catch {
             // Plausible Deniability: identical ambiguous response for wrong key AND clean carrier
-            return PLAUSIBLE_DENY;
+            return getPlausibleDenyResponse();
         }
 
     } catch (error: unknown) {
         const msg = error instanceof Error ? error.message : 'Unknown error.';
         console.error('Vault Extract API Error:', msg);
         // Even outer errors return the deniable 200 response — never leak 500
-        return PLAUSIBLE_DENY;
+        return getPlausibleDenyResponse();
     } finally {
         // Zero-Persistence: wipe all sensitive buffers
         if (buffer) { buffer.fill(0); buffer = null; }

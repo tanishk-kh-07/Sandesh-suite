@@ -132,6 +132,7 @@ export default function PixelVault() {
 
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
+      if (encodedUrl) URL.revokeObjectURL(encodedUrl);
       setEncodedUrl(url);
 
       setIsProcessing(false);

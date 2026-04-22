@@ -99,7 +99,7 @@ export function embedBits(
             if ((out[carrierIdx] % 2) !== bit) {
                 if (out[carrierIdx] === 0) out[carrierIdx]++;
                 else if (out[carrierIdx] === 255) out[carrierIdx]--;
-                else out[carrierIdx] += Math.random() > 0.5 ? 1 : -1;
+                else out[carrierIdx] += crypto.randomInt(2) === 1 ? 1 : -1;
             }
         } else {
             // Simple LSB Replacement
