@@ -166,7 +166,8 @@ export default function AudioVault() {
           <Link href="/" className="text-gray-400 hover:text-white transition flex items-center gap-2 border border-blue-900 p-2 rounded-lg bg-black hover:bg-gray-800 shadow-[0_0_10px_rgba(59,130,246,0.2)]">
             <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
           </Link>
-          <div className="w-8 h-8 bg-blue-500 rounded-sm flex items-center justify-center font-bold text-black border border-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.5)]">AV</div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="Sandesh Suite" className="w-8 h-8 rounded-sm object-cover border border-red-700 shadow-[0_0_10px_rgba(220,38,38,0.5)]" />
           <h1 className="text-xl font-bold tracking-widest text-white uppercase flex items-center gap-2" style={{ fontFamily: 'var(--font-rajdhani)' }}>
             Audio Vault
             <div className="group relative cursor-help">

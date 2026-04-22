@@ -150,9 +150,8 @@ export default function Home() {
       {/* Header */}
       <header className="border-b border-gray-800 bg-gray-950 px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-[0_4px_30px_rgba(0,0,0,0.5)]">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-green-500 rounded-sm flex items-center justify-center font-bold text-black border border-green-400 shadow-[0_0_10px_rgba(0,255,65,0.5)]">
-            SS
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="Sandesh Suite" className="w-10 h-10 rounded-sm object-cover border border-red-700 shadow-[0_0_10px_rgba(220,38,38,0.5)]" />
           <h1 className="text-2xl font-bold tracking-widest text-white uppercase" style={{ fontFamily: 'var(--font-rajdhani)' }}>
             Sandesh Suite
           </h1>
